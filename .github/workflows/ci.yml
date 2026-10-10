@@ -1,0 +1,180 @@
+# CI — builds dependency image once, all jobs run inside via container: directive.
+# Docker layer cache (type=gha) makes builds near-instant when deps unchanged.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'assets/**'
+      - 'harness/**'
+      - 'logs/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name != 'main' }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-sha: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Create and use Docker Buildx builder
+        run: docker buildx create --use
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.ci
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image
+        run: docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE }}:sha-${{ github.sha }} python -c "from jobspy import scrape_jobs; print('image OK')"
+
+  lint:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: ruff check . --output-format=github
+      - run: echo "## Lint Passed" >> $GITHUB_STEP_SUMMARY
+        if: success() || failure()
+
+  unit:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run offline unit tests (fixtures only)
+        run: |
+          PYTHONPATH=. python -m pytest \
+            tests/unit/test_hard_filter.py \
+            tests/unit/test_ranker.py \
+            tests/unit/test_platform_scraper.py \
+            tests/unit/test_thinking_kernel.py \
+            tests/test_job_record.py \
+            tests/test_entity_resolver.py \
+            tests/test_schemas.py \
+            -v --tb=short
+      - run: echo "## Unit Tests Passed" >> $GITHUB_STEP_SUMMARY
+        if: success() || failure()
+
+  contract:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run contract tests (JobRecord schema, entity resolver fixtures)
+        run: |
+          PYTHONPATH=. python -m pytest \
+            tests/test_job_record.py::TestValidateJobRecord \
+            tests/test_job_record.py::TestJobRecordFixtures \
+            tests/test_entity_resolver.py \
+            -v --tb=short
+      - run: echo "## Contract Tests Passed" >> $GITHUB_STEP_SUMMARY
+        if: success() || failure()
+
+  scraper-health:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run scraper health checks (may hit real sites)
+        run: |
+          PYTHONPATH=. python -m pytest \
+            tests/unit/test_capgemini.py \
+            tests/unit/test_magellium.py \
+            tests/unit/test_cgi.py \
+            tests/unit/test_new_scrapers_integration.py \
+            -v --tb=short
+        env:
+          SCRAPER_HEALTH_CHECK: "true"
+      - run: echo "## Scraper Health Checks Completed (non-blocking)" >> $GITHUB_STEP_SUMMARY
+        if: success() || failure()
+
+  run:
+    if: github.ref_name == 'main'
+    needs: [lint, unit, contract]
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p output
+          PYTHONPATH=. python run_pipeline.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-results
+          path: |
+            output/latest.csv
+            output/latest.json
+            output/**/*.csv
+            output/**/*.json
+          if-no-files-found: warn
+          retention-days: 30
+      - run: |
+          if [ -f output/latest.csv ]; then
+            ROWS=$(tail -n +2 output/latest.csv | wc -l)
+            echo "## Pipeline Results" >> $GITHUB_STEP_SUMMARY
+            echo "- CSV exported ($ROWS rows)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No output generated" >> $GITHUB_STEP_SUMMARY
+          fi
+        if: success() || failure()

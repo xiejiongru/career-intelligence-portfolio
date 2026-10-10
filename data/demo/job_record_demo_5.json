@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "georezo.demo-005",
+  "source": "georezo",
+  "source_job_id": null,
+  "canonical_url": "https://georezo.net/forum/viewtopic.php?id=demo-005",
+  "title": "Géomaticien - Collectivités Territoriales",
+  "company": "Métropole du Grand Est",
+  "location": "Strasbourg",
+  "employment_type": "CDD",
+  "remote": "Partial",
+  "salary": "38k-45k EUR",
+  "description": "Poste de Géomaticien au sein de la direction des données territoriales. Missions : administration serveur QGIS Server / Lizmap, gestion bases de données PostGIS, développement scripts Python pour automatisation des traitements cartographiques, support utilisateurs et formation. CDD 18 mois renouvelable. Permis B requis. Connaissance des standards INSPIRE et CNIG appréciée.",
+  "published_at": "2026-10-01T08:00:00Z",
+  "discovered_at": "2026-10-10T12:00:00Z",
+  "first_seen_at": "2026-10-10T12:00:00Z",
+  "last_seen_at": "2026-10-10T12:00:00Z",
+  "content_hash": "e5f6789012345678901234567890abcdef1234567890abcdef1234567abcde",
+  "status": "active",
+  "normalization_warnings": [],
+  "analysis": {
+    "hard_filter": {
+      "passed": true,
+      "reasons": [],
+      "missing_skills": []
+    },
+    "screening": {
+      "decision": "maybe",
+      "score": 68.0,
+      "filtered": false,
+      "filter_reasons": [],
+      "seniority": "mid",
+      "match_scores": {
+        "tech_match": 70.0,
+        "function_match": 80.0,
+        "domain_match": 85.0,
+        "experience_match": 65.0,
+        "growth_potential": 55.0
+      },
+      "skills": {
+        "gis": ["qgis", "lizmap", "postgis", "python", "inspire"],
+        "data": ["sql", "postgresql", "automation"],
+        "devops": [],
+        "programming": ["python"]
+      },
+      "gap_analysis": {
+        "missing_skills": ["kubernetes", "docker", "terraform", "aws", "ci/cd"],
+        "risk_factors": ["CDD limited duration", "limited DevOps/cloud exposure", "public sector salary scale"],
+        "leverage_points": ["public sector GIS expertise", "QGIS/Lizmap stack", "INSPIRE standards", "Python automation"]
+      },
+      "summary": "Good domain match for public sector GIS with QGIS/PostGIS stack, but CDD contract and limited cloud/DevOps.",
+      "rules_version": "1.0",
+      "model_version": "qwen2.5:7b-instruct"
+    },
+    "ranking": {
+      "final_score": 71.0,
+      "thinking_trace": "Domain match for public sector GIS (QGIS/PostGIS), but CDD and missing cloud/DevOps skills lower score.",
+      "kernel_version": "1.0"
+    }
+  }
+}

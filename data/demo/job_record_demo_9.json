@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "wttj.demo-009",
+  "source": "wttj",
+  "source_job_id": "demo-009",
+  "canonical_url": "https://www.welcometothejungle.com/fr/companies/urbantech/jobs/demo-009",
+  "title": "Full Stack Developer - Urban Data Platform",
+  "company": "UrbanTech",
+  "location": "Paris",
+  "employment_type": "CDI",
+  "remote": "Partial",
+  "salary": "50k-65k EUR",
+  "description": "UrbanTech builds data platforms for smart cities. We are looking for a Full Stack Developer to work on our urban analytics dashboard. Frontend: React, TypeScript, Mapbox GL JS. Backend: Python (FastAPI), PostgreSQL/PostGIS, Redis. Infrastructure: Docker, Kubernetes, AWS. You will build interactive visualizations for urban mobility, air quality, and energy consumption data. Required: 3+ years full stack, React + Python, PostGIS experience a plus.",
+  "published_at": "2026-10-07T11:00:00Z",
+  "discovered_at": "2026-10-10T12:00:00Z",
+  "first_seen_at": "2026-10-10T12:00:00Z",
+  "last_seen_at": "2026-10-10T12:00:00Z",
+  "content_hash": "c9d0e1f2345678901234567890abcdef1234567890abcdef1234567abcdef3",
+  "status": "active",
+  "normalization_warnings": [],
+  "analysis": {
+    "hard_filter": {
+      "passed": true,
+      "reasons": [],
+      "missing_skills": []
+    },
+    "screening": {
+      "decision": "apply",
+      "score": 79.0,
+      "filtered": false,
+      "filter_reasons": [],
+      "seniority": "mid",
+      "match_scores": {
+        "tech_match": 82.0,
+        "function_match": 85.0,
+        "domain_match": 80.0,
+        "experience_match": 78.0,
+        "growth_potential": 80.0
+      },
+      "skills": {
+        "gis": ["mapbox", "postgis"],
+        "data": ["python", "sql", "redis", "fastapi"],
+        "devops": ["docker", "kubernetes", "aws"],
+        "programming": ["python", "typescript", "react"]
+      },
+      "gap_analysis": {
+        "missing_skills": ["geopandas", "rasterio", "advanced spatial analysis"],
+        "risk_factors": [],
+        "leverage_points": ["smart city domain", "Mapbox + PostGIS", "full-stack with mapping", "modern React/TypeScript stack"]
+      },
+      "summary": "Good full-stack match with mapping focus (Mapbox/PostGIS), smart city domain, modern tech stack.",
+      "rules_version": "1.0",
+      "model_version": "qwen2.5:7b-instruct"
+    },
+    "ranking": {
+      "final_score": 81.5,
+      "thinking_trace": "Strong full-stack + mapping tech match (React, Mapbox, PostGIS, FastAPI, K8s), smart city domain alignment.",
+      "kernel_version": "1.0"
+    }
+  }
+}

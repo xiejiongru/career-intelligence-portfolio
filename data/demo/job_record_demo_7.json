@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "smartrecruiters.demo-007",
+  "source": "smartrecruiters",
+  "source_job_id": "demo-007",
+  "canonical_url": "https://api.smartrecruiters.com/v1/companies/retailtech/postings/demo-007",
+  "title": "Data Platform Engineer",
+  "company": "RetailTech",
+  "location": "Berlin",
+  "employment_type": "CDI",
+  "remote": "Yes",
+  "salary": "70k-90k EUR",
+  "description": "RetailTech is looking for a Data Platform Engineer to build and maintain our data infrastructure. You will work with Kafka, Flink, ClickHouse, PostgreSQL, and Kubernetes on AWS. Responsibilities: design scalable data pipelines, optimize query performance, implement data governance, support ML feature store. Required: 4+ years data engineering, strong SQL and Python, experience with streaming (Kafka/Flink) and OLAP (ClickHouse). German language skills a plus.",
+  "published_at": "2026-10-03T09:00:00Z",
+  "discovered_at": "2026-10-10T12:00:00Z",
+  "first_seen_at": "2026-10-10T12:00:00Z",
+  "last_seen_at": "2026-10-10T12:00:00Z",
+  "content_hash": "a7b8c9d0e1f2345678901234567890abcdef1234567890abcdef1234567abcde",
+  "status": "active",
+  "normalization_warnings": [],
+  "analysis": {
+    "hard_filter": {
+      "passed": true,
+      "reasons": [],
+      "missing_skills": []
+    },
+    "screening": null,
+    "ranking": {
+      "final_score": 75.0,
+      "thinking_trace": "Good data engineering match (Kafka, Flink, ClickHouse, K8s), remote bonus, location bonus (Berlin), no geospatial domain.",
+      "kernel_version": "1.0"
+    }
+  }
+}

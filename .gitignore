@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime data (private, not committed)
+data/job_records.jsonl
+data/for_vault/
+output/
+artifacts/
+logs/
+*.log
+
+# Local config
+.env
+config.yaml
+config.local.yaml
+
+# Docker
+.docker/
+
+# Test artifacts
+*.prof
