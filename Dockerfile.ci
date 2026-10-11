@@ -4,7 +4,7 @@ FROM python:3.13-slim-bookworm
 
 WORKDIR /app
 
-# System deps (build)
+# System deps (build + spacy + playwright)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libffi-dev \
@@ -12,16 +12,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Python deps
+# Python deps (core + test + lint)
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir ruff
 
 # spaCy model
 RUN python -m spacy download en_core_web_sm
-
-# ruff for lint
-RUN pip install --no-cache-dir ruff
 
 LABEL org.opencontainers.image.source="https://github.com/xiejiongru/career-intelligence-portfolio"
 LABEL org.opencontainers.image.url="https://github.com/xiejiongru/career-intelligence-portfolio"

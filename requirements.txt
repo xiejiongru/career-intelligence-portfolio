@@ -1,4 +1,4 @@
-# Core (needed for tests)
+# Core
 pyyaml>=6.0
 rich>=13.0.0
 python-dotenv>=1.0.0
@@ -12,15 +12,15 @@ beautifulsoup4>=4.12.0
 lxml>=4.9.0
 jsonschema>=4.19.0
 
+# Test deps (needed for pipeline imports in tests)
+openai>=1.0.0
+crawl4ai>=0.4.0
+playwright>=1.40.0
+sentence-transformers>=2.2.0
+pdfplumber>=0.10.0
+jobspy>=1.2.0
+
 # Dev
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
 ruff>=0.1.0
-
-# Optional (installed at runtime, not in CI)
-# jobspy>=1.2.0
-# openai>=1.0.0
-# crawl4ai>=0.4.0
-# playwright>=1.40.0
-# sentence-transformers>=2.2.0
-# pdfplumber>=0.10.0
