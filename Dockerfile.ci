@@ -2,11 +2,9 @@
 # Built only when requirements.txt or Dockerfile.ci changes.
 FROM python:3.13-slim-bookworm
 
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-
 WORKDIR /app
 
-# System deps (build + Playwright)
+# System deps (build)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libffi-dev \
@@ -22,13 +20,9 @@ RUN pip install --no-cache-dir --upgrade pip \
 # spaCy model
 RUN python -m spacy download en_core_web_sm
 
-# Playwright browsers
-RUN python -m playwright install chromium --with-deps \
-    && chmod -R 755 /ms-playwright
-
 # ruff for lint
 RUN pip install --no-cache-dir ruff
 
-LABEL org.opencontainers.image.source="https://github.com/xiejiongru/job_pipeline"
-LABEL org.opencontainers.image.url="https://github.com/xiejiongru/job_pipeline"
-LABEL org.opencontainers.image.description="Job Pipeline CI base image"
+LABEL org.opencontainers.image.source="https://github.com/xiejiongru/career-intelligence-portfolio"
+LABEL org.opencontainers.image.url="https://github.com/xiejiongru/career-intelligence-portfolio"
+LABEL org.opencontainers.image.description="Career Intelligence Portfolio CI base image"
