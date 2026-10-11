@@ -61,7 +61,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Verify image
-        run: docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE }}:sha-${{ github.sha }} python -c "import pipeline; import jsonschema; import spacy; import ruff; print('image OK')"
+        run: docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE }}:sha-${{ github.sha }} python -c "import sys; sys.path.insert(0, '/app'); import pipeline; import jsonschema; import spacy; import ruff; print('image OK')"
 
   lint:
     needs: build
