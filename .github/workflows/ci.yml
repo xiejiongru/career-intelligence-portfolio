@@ -67,6 +67,9 @@ jobs:
           SHA_TAG=$(echo "$TAGS" | tr ',' '\n' | grep '^sha-' | head -1)
           echo "sha-tag=$SHA_TAG" >> $GITHUB_OUTPUT
 
+      - name: Set image tag output
+        run: echo "image-tag=${{ steps.extract.outputs.sha-tag }}" >> $GITHUB_OUTPUT
+
   lint:
     needs: build
     runs-on: ubuntu-latest
