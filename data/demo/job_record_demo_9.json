@@ -15,7 +15,7 @@
   "discovered_at": "2026-10-10T12:00:00Z",
   "first_seen_at": "2026-10-10T12:00:00Z",
   "last_seen_at": "2026-10-10T12:00:00Z",
-  "content_hash": "c9d0e1f2345678901234567890abcdef1234567890abcdef1234567abcdef3",
+  "content_hash": "036b090161dfef8610a1f081a966bdd45404f9d417f74dc7e6d51a7767d238a1",
   "status": "active",
   "normalization_warnings": [],
   "analysis": {
@@ -38,15 +38,40 @@
         "growth_potential": 80.0
       },
       "skills": {
-        "gis": ["mapbox", "postgis"],
-        "data": ["python", "sql", "redis", "fastapi"],
-        "devops": ["docker", "kubernetes", "aws"],
-        "programming": ["python", "typescript", "react"]
+        "gis": [
+          "mapbox",
+          "postgis"
+        ],
+        "data": [
+          "python",
+          "sql",
+          "redis",
+          "fastapi"
+        ],
+        "devops": [
+          "docker",
+          "kubernetes",
+          "aws"
+        ],
+        "programming": [
+          "python",
+          "typescript",
+          "react"
+        ]
       },
       "gap_analysis": {
-        "missing_skills": ["geopandas", "rasterio", "advanced spatial analysis"],
+        "missing_skills": [
+          "geopandas",
+          "rasterio",
+          "advanced spatial analysis"
+        ],
         "risk_factors": [],
-        "leverage_points": ["smart city domain", "Mapbox + PostGIS", "full-stack with mapping", "modern React/TypeScript stack"]
+        "leverage_points": [
+          "smart city domain",
+          "Mapbox + PostGIS",
+          "full-stack with mapping",
+          "modern React/TypeScript stack"
+        ]
       },
       "summary": "Good full-stack match with mapping focus (Mapbox/PostGIS), smart city domain, modern tech stack.",
       "rules_version": "1.0",

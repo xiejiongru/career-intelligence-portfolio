@@ -23,9 +23,9 @@ Thumbs.db
 # Runtime data (private, not committed)
 data/job_records.jsonl
 data/for_vault/
-output/
-artifacts/
-logs/
+/output/
+/artifacts/
+/logs/
 *.log
 
 # Local config

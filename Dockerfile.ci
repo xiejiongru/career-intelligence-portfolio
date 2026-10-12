@@ -4,19 +4,19 @@ FROM python:3.13-slim-bookworm
 
 WORKDIR /app
 
-# System deps (build + spacy + playwright)
+# System deps (git for actions/checkout + build + spacy)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    git \
     libffi-dev \
     libxml2-dev \
     libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Python deps (core + test + lint)
+# Python deps (core + test + lint, ruff included in requirements.txt)
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir ruff
+    && pip install --no-cache-dir -r requirements.txt
 
 # spaCy model
 RUN python -m spacy download en_core_web_sm

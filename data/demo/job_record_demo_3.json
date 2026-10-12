@@ -15,7 +15,7 @@
   "discovered_at": "2026-10-10T12:00:00Z",
   "first_seen_at": "2026-10-10T12:00:00Z",
   "last_seen_at": "2026-10-10T12:00:00Z",
-  "content_hash": "c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567ab",
+  "content_hash": "2ec41d34d2629455d5d8c801fdc46ad3d0bb671b01a37169b327dfaf4cd2ca66",
   "status": "active",
   "normalization_warnings": [],
   "analysis": {
@@ -39,14 +39,36 @@
       },
       "skills": {
         "gis": [],
-        "data": ["python", "monitoring"],
-        "devops": ["aws", "kubernetes", "terraform", "gitlab", "prometheus", "grafana"],
-        "programming": ["python", "go", "bash"]
+        "data": [
+          "python",
+          "monitoring"
+        ],
+        "devops": [
+          "aws",
+          "kubernetes",
+          "terraform",
+          "gitlab",
+          "prometheus",
+          "grafana"
+        ],
+        "programming": [
+          "python",
+          "go",
+          "bash"
+        ]
       },
       "gap_analysis": {
-        "missing_skills": ["geospatial domain knowledge"],
-        "risk_factors": ["no GIS/domain alignment"],
-        "leverage_points": ["strong cloud-native DevOps", "automation focus", "remote-first company"]
+        "missing_skills": [
+          "geospatial domain knowledge"
+        ],
+        "risk_factors": [
+          "no GIS/domain alignment"
+        ],
+        "leverage_points": [
+          "strong cloud-native DevOps",
+          "automation focus",
+          "remote-first company"
+        ]
       },
       "summary": "Excellent DevOps tech match, but no geospatial domain alignment. Good for pure cloud/infra roles.",
       "rules_version": "1.0",

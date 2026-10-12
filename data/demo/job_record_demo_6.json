@@ -15,7 +15,7 @@
   "discovered_at": "2026-10-10T12:00:00Z",
   "first_seen_at": "2026-10-10T12:00:00Z",
   "last_seen_at": "2026-10-10T12:00:00Z",
-  "content_hash": "f6789012345678901234567890abcdef1234567890abcdef1234567abcdef1",
+  "content_hash": "43098fe037bb1f26e7967056388e60b73c7cca93140ad75b37365b3c3d954f9d",
   "status": "active",
   "normalization_warnings": [],
   "analysis": {
@@ -38,15 +38,39 @@
         "growth_potential": 92.0
       },
       "skills": {
-        "gis": ["rasterio", "geopandas", "satellite imagery"],
-        "data": ["python", "pytorch", "tensorflow", "mlops"],
-        "devops": ["aws", "docker", "kubernetes", "sagemaker"],
-        "programming": ["python"]
+        "gis": [
+          "rasterio",
+          "geopandas",
+          "satellite imagery"
+        ],
+        "data": [
+          "python",
+          "pytorch",
+          "tensorflow",
+          "mlops"
+        ],
+        "devops": [
+          "aws",
+          "docker",
+          "kubernetes",
+          "sagemaker"
+        ],
+        "programming": [
+          "python"
+        ]
       },
       "gap_analysis": {
-        "missing_skills": ["postgis", "vector data"],
+        "missing_skills": [
+          "postgis",
+          "vector data"
+        ],
         "risk_factors": [],
-        "leverage_points": ["cutting-edge geospatial AI", "ML engineering depth", "cloud ML platforms", "research background"]
+        "leverage_points": [
+          "cutting-edge geospatial AI",
+          "ML engineering depth",
+          "cloud ML platforms",
+          "research background"
+        ]
       },
       "summary": "Exciting geospatial AI role with strong ML engineering focus, high growth potential, modern cloud stack.",
       "rules_version": "1.0",

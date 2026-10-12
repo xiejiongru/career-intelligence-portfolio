@@ -15,7 +15,7 @@
   "discovered_at": "2026-10-10T12:00:00Z",
   "first_seen_at": "2026-10-10T12:00:00Z",
   "last_seen_at": "2026-10-10T12:00:00Z",
-  "content_hash": "b8c9d0e1f2345678901234567890abcdef1234567890abcdef1234567abcdef2",
+  "content_hash": "bc55d4534bb7e576a61930a3d7d9c02fcbf15771dbc5f2c4bef629857c182107",
   "status": "active",
   "normalization_warnings": [],
   "analysis": {
@@ -38,15 +38,39 @@
         "growth_potential": 78.0
       },
       "skills": {
-        "gis": ["arcgis", "qgis", "postgis", "python"],
-        "data": ["sql", "postgresql", "reporting automation"],
+        "gis": [
+          "arcgis",
+          "qgis",
+          "postgis",
+          "python"
+        ],
+        "data": [
+          "sql",
+          "postgresql",
+          "reporting automation"
+        ],
         "devops": [],
-        "programming": ["python"]
+        "programming": [
+          "python"
+        ]
       },
       "gap_analysis": {
-        "missing_skills": ["docker", "kubernetes", "terraform", "aws", "ci/cd"],
-        "risk_factors": ["limited DevOps/cloud"],
-        "leverage_points": ["renewable energy domain", "ArcGIS/QGIS + PostGIS", "environmental impact expertise", "Python automation"]
+        "missing_skills": [
+          "docker",
+          "kubernetes",
+          "terraform",
+          "aws",
+          "ci/cd"
+        ],
+        "risk_factors": [
+          "limited DevOps/cloud"
+        ],
+        "leverage_points": [
+          "renewable energy domain",
+          "ArcGIS/QGIS + PostGIS",
+          "environmental impact expertise",
+          "Python automation"
+        ]
       },
       "summary": "Strong renewable energy GIS role with ArcGIS/QGIS/PostGIS stack, good growth potential in green energy sector.",
       "rules_version": "1.0",

@@ -15,7 +15,7 @@
   "discovered_at": "2026-10-10T12:00:00Z",
   "first_seen_at": "2026-10-10T12:00:00Z",
   "last_seen_at": "2026-10-10T12:00:00Z",
-  "content_hash": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+  "content_hash": "681dee77769628993dc6ddb6d46abe0b31e10979e9031e6a6e8664fe90331b38",
   "status": "active",
   "normalization_warnings": [],
   "analysis": {
@@ -38,15 +38,39 @@
         "growth_potential": 88.0
       },
       "skills": {
-        "gis": ["postgis", "gdal", "geoparquet", "geojson"],
-        "data": ["python", "sql", "data engineering", "airflow", "dbt"],
-        "devops": ["aws", "gcp", "docker", "kubernetes", "terraform"],
-        "programming": ["python", "sql"]
+        "gis": [
+          "postgis",
+          "gdal",
+          "geoparquet",
+          "geojson"
+        ],
+        "data": [
+          "python",
+          "sql",
+          "data engineering",
+          "airflow",
+          "dbt"
+        ],
+        "devops": [
+          "aws",
+          "gcp",
+          "docker",
+          "kubernetes",
+          "terraform"
+        ],
+        "programming": [
+          "python",
+          "sql"
+        ]
       },
       "gap_analysis": {
         "missing_skills": [],
         "risk_factors": [],
-        "leverage_points": ["senior geospatial expertise", "cloud-native data platforms", "ML collaboration"]
+        "leverage_points": [
+          "senior geospatial expertise",
+          "cloud-native data platforms",
+          "ML collaboration"
+        ]
       },
       "summary": "Excellent match for senior geospatial data engineering role with strong tech stack alignment.",
       "rules_version": "1.0",

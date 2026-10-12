@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "linkedin.3829104567",
+  "source": "linkedin",
+  "source_job_id": "3829104567",
+  "canonical_url": "https://www.linkedin.com/jobs/view/3829104567",
+  "title": "GIS Developer",
+  "company": "ESRI France",
+  "location": "Paris",
+  "employment_type": "CDI",
+  "remote": "Partial",
+  "salary": "45k-60k EUR",
+  "description": "Join ESRI France as a GIS Developer. You will develop geospatial applications using ArcGIS API, Python, JavaScript, and PostgreSQL/PostGIS. Experience with Docker and cloud deployment (AWS/Azure) is a plus. 2+ years experience required.",
+  "published_at": "2026-10-05T09:30:00Z",
+  "discovered_at": "2026-10-10T12:00:00Z",
+  "first_seen_at": "2026-10-10T12:00:00Z",
+  "last_seen_at": "2026-10-10T12:00:00Z",
+  "content_hash": "b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567a",
+  "status": "active",
+  "normalization_warnings": ["fuzzy_company_match:esri france->ESRI France"],
+  "analysis": {
+    "hard_filter": {
+      "passed": true,
+      "reasons": [],
+      "missing_skills": []
+    },
+    "screening": {
+      "decision": "apply",
+      "score": 78.0,
+      "filtered": false,
+      "filter_reasons": [],
+      "seniority": "mid",
+      "match_scores": {
+        "tech_match": 75.0,
+        "function_match": 85.0,
+        "domain_match": 95.0,
+        "experience_match": 70.0,
+        "growth_potential": 75.0
+      },
+      "skills": {
+        "gis": ["arcgis", "postgis", "python"],
+        "data": ["postgresql", "sql"],
+        "devops": ["docker", "aws", "azure"],
+        "programming": ["python", "javascript"]
+      },
+      "gap_analysis": {
+        "missing_skills": [],
+        "risk_factors": [],
+        "leverage_points": ["ESRI domain expert", "ArcGIS stack", "French market"]
+      },
+      "summary": "Good domain match for ESRI stack, moderate tech match for required skills.",
+      "rules_version": "1.0",
+      "model_version": "qwen2.5:7b-instruct"
+    },
+    "ranking": {
+      "final_score": 81.5,
+      "thinking_trace": "Strong domain match (ESRI), good GIS skills, partial cloud/DevOps match.",
+      "kernel_version": "1.0"
+    }
+  }
+}

@@ -11,8 +11,10 @@ httpx>=0.25.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 jsonschema>=4.19.0
+pydantic>=2.0.0
 
-# Test deps (lightweight, needed for pipeline imports in tests)
+# Scraper/browser deps (needed for pipeline imports in tests)
+playwright>=1.40.0
 openai>=1.0.0
 
 # Dev

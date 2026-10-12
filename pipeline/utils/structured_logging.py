@@ -230,8 +230,8 @@ class RunSummary:
     def to_markdown(self) -> str:
         """Generate human-readable markdown summary."""
         lines = [
-            f"# Pipeline Run Summary",
-            f"",
+            "# Pipeline Run Summary",
+            "",
             f"**Run ID:** {self.run_id}",
             f"**Status:** {self.status}",
             f"**Started:** {self.started_at}",

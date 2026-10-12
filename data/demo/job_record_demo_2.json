@@ -15,7 +15,7 @@
   "discovered_at": "2026-10-10T12:00:00Z",
   "first_seen_at": "2026-10-10T12:00:00Z",
   "last_seen_at": "2026-10-10T12:00:00Z",
-  "content_hash": "b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567a",
+  "content_hash": "267931e1b2e03a45ee9f257e042a9b20e1a5e3bfd178cd92270dfebba344b730",
   "status": "active",
   "normalization_warnings": [],
   "analysis": {
@@ -38,15 +38,37 @@
         "growth_potential": 82.0
       },
       "skills": {
-        "gis": ["arcgis", "postgis", "javascript"],
-        "data": ["postgresql", "sql"],
-        "devops": ["docker", "aws", "ci/cd"],
-        "programming": ["python", "javascript", "typescript"]
+        "gis": [
+          "arcgis",
+          "postgis",
+          "javascript"
+        ],
+        "data": [
+          "postgresql",
+          "sql"
+        ],
+        "devops": [
+          "docker",
+          "aws",
+          "ci/cd"
+        ],
+        "programming": [
+          "python",
+          "javascript",
+          "typescript"
+        ]
       },
       "gap_analysis": {
-        "missing_skills": ["kubernetes", "terraform"],
+        "missing_skills": [
+          "kubernetes",
+          "terraform"
+        ],
         "risk_factors": [],
-        "leverage_points": ["full-stack GIS development", "ArcGIS expertise", "remote-friendly"]
+        "leverage_points": [
+          "full-stack GIS development",
+          "ArcGIS expertise",
+          "remote-friendly"
+        ]
       },
       "summary": "Strong domain match for ArcGIS stack, good full-stack skills, remote work option.",
       "rules_version": "1.0",

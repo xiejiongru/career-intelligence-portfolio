@@ -15,7 +15,7 @@
   "discovered_at": "2026-10-10T12:00:00Z",
   "first_seen_at": "2026-10-10T12:00:00Z",
   "last_seen_at": "2026-10-10T12:00:00Z",
-  "content_hash": "e5f6789012345678901234567890abcdef1234567890abcdef1234567abcde",
+  "content_hash": "fb1fca1070a9b9fbf69fa6f2c0386de1982f0672b62b151c3e71270a0b9e7e79",
   "status": "active",
   "normalization_warnings": [],
   "analysis": {
@@ -38,15 +38,42 @@
         "growth_potential": 55.0
       },
       "skills": {
-        "gis": ["qgis", "lizmap", "postgis", "python", "inspire"],
-        "data": ["sql", "postgresql", "automation"],
+        "gis": [
+          "qgis",
+          "lizmap",
+          "postgis",
+          "python",
+          "inspire"
+        ],
+        "data": [
+          "sql",
+          "postgresql",
+          "automation"
+        ],
         "devops": [],
-        "programming": ["python"]
+        "programming": [
+          "python"
+        ]
       },
       "gap_analysis": {
-        "missing_skills": ["kubernetes", "docker", "terraform", "aws", "ci/cd"],
-        "risk_factors": ["CDD limited duration", "limited DevOps/cloud exposure", "public sector salary scale"],
-        "leverage_points": ["public sector GIS expertise", "QGIS/Lizmap stack", "INSPIRE standards", "Python automation"]
+        "missing_skills": [
+          "kubernetes",
+          "docker",
+          "terraform",
+          "aws",
+          "ci/cd"
+        ],
+        "risk_factors": [
+          "CDD limited duration",
+          "limited DevOps/cloud exposure",
+          "public sector salary scale"
+        ],
+        "leverage_points": [
+          "public sector GIS expertise",
+          "QGIS/Lizmap stack",
+          "INSPIRE standards",
+          "Python automation"
+        ]
       },
       "summary": "Good domain match for public sector GIS with QGIS/PostGIS stack, but CDD contract and limited cloud/DevOps.",
       "rules_version": "1.0",

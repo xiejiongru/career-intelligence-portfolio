@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "indeed.url.21548823e2eea3cb",
+  "source": "indeed",
+  "source_job_id": null,
+  "canonical_url": "https://fr.indeed.com/viewjob?jk=a1b2c3d4e5f67890",
+  "title": "DevOps Engineer (Alternance)",
+  "company": "Schneider Electric",
+  "location": "Grenoble",
+  "employment_type": "Alternance",
+  "remote": "No",
+  "salary": null,
+  "description": "Alternance DevOps position at Schneider Electric. 2-year apprenticeship. You will work on CI/CD pipelines, Kubernetes, Terraform, and monitoring. Must be enrolled in a French engineering school. Not a full-time position.",
+  "published_at": "2026-10-08T14:00:00Z",
+  "discovered_at": "2026-10-10T12:00:00Z",
+  "first_seen_at": "2026-10-10T12:00:00Z",
+  "last_seen_at": "2026-10-10T12:00:00Z",
+  "content_hash": "e621fe548a21461df65ebb4aa4121fc445456974e21ab8e7e7c60b5684315aef",
+  "status": "active",
+  "normalization_warnings": [],
+  "analysis": {
+    "hard_filter": {
+      "passed": false,
+      "reasons": ["job_type_not_allowed: Alternance not in allowed_job_types"],
+      "missing_skills": []
+    },
+    "screening": null,
+    "ranking": null
+  }
+}

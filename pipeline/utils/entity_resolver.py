@@ -3,6 +3,7 @@ Entity Resolution & Data Cleaning Layer (v2)
 """
 from __future__ import annotations
 
+import html as _html  # for unescape
 import logging
 import re
 from typing import Optional
@@ -197,8 +198,6 @@ TRACKING_PARAMS: set[str] = {
 
 # ── HTML 处理 ─────────────────────────────────────────────────────────────────
 _HTML_TAG_RE = re.compile(r'<[^>]+>')
-
-import html as _html  # for unescape
 
 
 def _strip_html(s: str) -> str:
