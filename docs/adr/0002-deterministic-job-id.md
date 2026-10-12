@@ -72,4 +72,4 @@ Fallback when neither source ID nor URL is reliable.
 
 ## References
 
-- [FIELD_SOURCE_MATRIX.md](../FIELD_SOURCE_MATRIX.md#deterministic-job-id-algorithm)
+- [FIELD_SOURCE_MATRIX.md](../../pipeline/output/FIELD_SOURCE_MATRIX.md#deterministic-job-id-algorithm)

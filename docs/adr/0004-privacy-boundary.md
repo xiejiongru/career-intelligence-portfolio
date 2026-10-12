@@ -72,5 +72,4 @@ Job Sources → Pipeline → data/job_records.jsonl (Tier 2, gitignored)
 
 ## References
 
-- [CLAUDE.md](../CLAUDE.md#0-latest-exchange-record)
-- [JobRecord v1 Schema](../schemas/job-record-v1.json) — No PII fields
+- [JobRecord v1 Schema](../../schemas/job-record-v1.json) — No PII fields

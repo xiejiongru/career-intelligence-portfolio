@@ -84,5 +84,4 @@ Three-tier test architecture with clear CI boundaries:
 
 ## References
 
-- [CI Workflow](../.github/workflows/ci.yml)
-- [Cron Workflow](../.github/workflows/scraper-cron.yml)
+- [CI Workflow](../../.github/workflows/ci.yml)

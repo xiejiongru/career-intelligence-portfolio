@@ -27,7 +27,7 @@ tags: |
 - `scraper-health` runs but `continue-on-error: true` (non-blocking)
 - `run` job only triggers on `main` after `lint`, `unit`, `contract` pass
 
-### Cron Workflow (`.github/workflows/scraper-cron.yml`)
+### Cron Workflow (private runtime repo: `.github/workflows/scraper-cron.yml`)
 - Consumes `ghcr.io/org/repo:latest` (guaranteed to be from main)
 - Runs every 2 days independently of CI
 
@@ -46,9 +46,8 @@ tags: |
 ## Implementation
 
 - `.github/workflows/ci.yml` — Restructured with metadata-action for conditional tags
-- `.github/workflows/scraper-cron.yml` — Confirmed safe usage
+- Cron workflow lives in the private runtime repo and consumes only `ghcr.io/...:latest`
 
 ## References
 
-- [CI Workflow](../.github/workflows/ci.yml)
-- [Cron Workflow](../.github/workflows/scraper-cron.yml)
+- [CI Workflow](../../.github/workflows/ci.yml)

@@ -48,5 +48,5 @@ Adopt a versioned JSON Schema (`JobRecord v1`) as the canonical data contract wi
 
 ## References
 
-- [FIELD_SOURCE_MATRIX.md](../FIELD_SOURCE_MATRIX.md)
-- [JobRecord v1 JSON Schema](../schemas/job-record-v1.json)
+- [FIELD_SOURCE_MATRIX.md](../../pipeline/output/FIELD_SOURCE_MATRIX.md)
+- [JobRecord v1 JSON Schema](../../schemas/job-record-v1.json)
