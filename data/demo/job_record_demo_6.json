@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "lever.demo-006",
+  "source": "lever",
+  "source_job_id": "demo-006",
+  "canonical_url": "https://api.lever.co/v0/postings/datacorp/demo-006?mode=json",
+  "title": "Machine Learning Engineer - Geospatial AI",
+  "company": "DataCorp AI",
+  "location": "Paris",
+  "employment_type": "CDI",
+  "remote": "Partial",
+  "salary": "60k-80k EUR",
+  "description": "DataCorp AI is building the next generation of geospatial AI models for satellite imagery analysis. We are looking for an ML Engineer to train and deploy computer vision models for land use classification, change detection, and object detection from satellite data. Stack: Python, PyTorch, TensorFlow, AWS SageMaker, Docker, Kubernetes. Required: 3+ years ML engineering experience, strong Python, experience with geospatial data (raster/vector) is a major plus. Publications in CVPR/ICCV/ECCV or similar a plus.",
+  "published_at": "2026-09-30T10:00:00Z",
+  "discovered_at": "2026-10-10T12:00:00Z",
+  "first_seen_at": "2026-10-10T12:00:00Z",
+  "last_seen_at": "2026-10-10T12:00:00Z",
+  "content_hash": "43098fe037bb1f26e7967056388e60b73c7cca93140ad75b37365b3c3d954f9d",
+  "status": "active",
+  "normalization_warnings": [],
+  "analysis": {
+    "hard_filter": {
+      "passed": true,
+      "reasons": [],
+      "missing_skills": []
+    },
+    "screening": {
+      "decision": "apply",
+      "score": 88.0,
+      "filtered": false,
+      "filter_reasons": [],
+      "seniority": "mid",
+      "match_scores": {
+        "tech_match": 90.0,
+        "function_match": 85.0,
+        "domain_match": 90.0,
+        "experience_match": 85.0,
+        "growth_potential": 92.0
+      },
+      "skills": {
+        "gis": [
+          "rasterio",
+          "geopandas",
+          "satellite imagery"
+        ],
+        "data": [
+          "python",
+          "pytorch",
+          "tensorflow",
+          "mlops"
+        ],
+        "devops": [
+          "aws",
+          "docker",
+          "kubernetes",
+          "sagemaker"
+        ],
+        "programming": [
+          "python"
+        ]
+      },
+      "gap_analysis": {
+        "missing_skills": [
+          "postgis",
+          "vector data"
+        ],
+        "risk_factors": [],
+        "leverage_points": [
+          "cutting-edge geospatial AI",
+          "ML engineering depth",
+          "cloud ML platforms",
+          "research background"
+        ]
+      },
+      "summary": "Exciting geospatial AI role with strong ML engineering focus, high growth potential, modern cloud stack.",
+      "rules_version": "1.0",
+      "model_version": "qwen2.5:7b-instruct"
+    },
+    "ranking": {
+      "final_score": 90.5,
+      "thinking_trace": "Strong ML/tech match (PyTorch, TF, K8s), geospatial AI domain alignment, high growth potential, modern MLOps stack.",
+      "kernel_version": "1.0"
+    }
+  }
+}

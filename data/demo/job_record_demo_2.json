@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "linkedin.demo-002",
+  "source": "linkedin",
+  "source_job_id": "demo-002",
+  "canonical_url": "https://www.linkedin.com/jobs/view/demo-002",
+  "title": "GIS Developer",
+  "company": "GeoSystems Inc",
+  "location": "Lyon",
+  "employment_type": "CDI",
+  "remote": "Yes",
+  "salary": "50k-65k EUR",
+  "description": "Join GeoSystems as a GIS Developer to build web-based mapping applications. You will work with ArcGIS API for JavaScript, React, Python (FastAPI), and PostgreSQL/PostGIS. Responsibilities: develop interactive maps, optimize spatial queries, integrate third-party geospatial services. Required: 3+ years GIS development experience, strong JavaScript and Python skills. Nice to have: Docker, AWS, CI/CD pipelines.",
+  "published_at": "2026-09-20T09:30:00Z",
+  "discovered_at": "2026-10-10T12:00:00Z",
+  "first_seen_at": "2026-10-10T12:00:00Z",
+  "last_seen_at": "2026-10-10T12:00:00Z",
+  "content_hash": "267931e1b2e03a45ee9f257e042a9b20e1a5e3bfd178cd92270dfebba344b730",
+  "status": "active",
+  "normalization_warnings": [],
+  "analysis": {
+    "hard_filter": {
+      "passed": true,
+      "reasons": [],
+      "missing_skills": []
+    },
+    "screening": {
+      "decision": "apply",
+      "score": 85.0,
+      "filtered": false,
+      "filter_reasons": [],
+      "seniority": "mid",
+      "match_scores": {
+        "tech_match": 85.0,
+        "function_match": 90.0,
+        "domain_match": 95.0,
+        "experience_match": 80.0,
+        "growth_potential": 82.0
+      },
+      "skills": {
+        "gis": [
+          "arcgis",
+          "postgis",
+          "javascript"
+        ],
+        "data": [
+          "postgresql",
+          "sql"
+        ],
+        "devops": [
+          "docker",
+          "aws",
+          "ci/cd"
+        ],
+        "programming": [
+          "python",
+          "javascript",
+          "typescript"
+        ]
+      },
+      "gap_analysis": {
+        "missing_skills": [
+          "kubernetes",
+          "terraform"
+        ],
+        "risk_factors": [],
+        "leverage_points": [
+          "full-stack GIS development",
+          "ArcGIS expertise",
+          "remote-friendly"
+        ]
+      },
+      "summary": "Strong domain match for ArcGIS stack, good full-stack skills, remote work option.",
+      "rules_version": "1.0",
+      "model_version": "qwen2.5:7b-instruct"
+    },
+    "ranking": {
+      "final_score": 87.5,
+      "thinking_trace": "Strong domain match (GIS), good tech match (Python, JS, PostGIS), remote bonus, missing some DevOps depth.",
+      "kernel_version": "1.0"
+    }
+  }
+}

@@ -1,0 +1,346 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://job-pipeline.example.com/schemas/job-record-v1.json",
+  "title": "JobRecord",
+  "description": "Canonical normalized job record for Career Intelligence Pipeline v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "job_id",
+    "source",
+    "canonical_url",
+    "title",
+    "company",
+    "location",
+    "description",
+    "discovered_at",
+    "first_seen_at",
+    "last_seen_at",
+    "content_hash",
+    "status"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0",
+      "description": "Schema version for this record format"
+    },
+    "job_id": {
+      "type": "string",
+      "description": "Stable, deterministic identifier for this job across runs. Computed from source + source_job_id, or canonical_url, or SHA-256 of normalized fields.",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "source": {
+      "type": "string",
+      "description": "Origin source identifier (e.g., linkedin, indeed, georezo, greenhouse, lever, smartrecruiters, seekau, jobat, oikotie, iamexpat, jobslu)",
+      "enum": [
+        "linkedin",
+        "indeed",
+        "georezo",
+        "greenhouse",
+        "lever",
+        "smartrecruiters",
+        "seekau",
+        "jobat",
+        "oikotie",
+        "iamexpat",
+        "jobslu"
+      ]
+    },
+    "source_job_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Original job ID from the source system, if available. Null if source does not provide a stable ID."
+    },
+    "canonical_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Canonical URL for the job posting, with tracking parameters stripped. Used as fallback for job_id generation."
+    },
+    "title": {
+      "type": "string",
+      "description": "Job title as listed"
+    },
+    "company": {
+      "type": "string",
+      "description": "Normalized company name (e.g., Acme Corp, Company A)"
+    },
+    "location": {
+      "type": "string",
+      "description": "Normalized location (e.g., Paris, Île-de-France, Lyon, London, Remote)"
+    },
+    "employment_type": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Normalized employment type: CDI, CDD, Stage, Alternance, Apprentissage, Freelance, VIE, Part-time, Contract, or null if unknown",
+      "enum": [
+        "CDI",
+        "CDD",
+        "Stage",
+        "Alternance",
+        "Apprentissage",
+        "Freelance",
+        "VIE",
+        "Part-time",
+        "Contract",
+        null
+      ]
+    },
+    "remote": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Normalized remote work status: Yes, Partial, No, or null if unknown",
+      "enum": [
+        "Yes",
+        "Partial",
+        "No",
+        null
+      ]
+    },
+    "salary": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Salary information as listed, or null if not provided"
+    },
+    "description": {
+      "type": "string",
+      "description": "Full job description text (HTML stripped)"
+    },
+    "published_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "Original publication date from source (ISO 8601 UTC), or null if unknown"
+    },
+    "discovered_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when this pipeline run discovered the job (ISO 8601 UTC)"
+    },
+    "first_seen_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when this job was first ever seen by the pipeline (ISO 8601 UTC). Equals discovered_at for new jobs."
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when this job was last seen by the pipeline (ISO 8601 UTC). Updated on each run where job appears."
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hash of normalized (title + company + location + description) for change detection"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "closed",
+        "expired",
+        "filled",
+        "unknown"
+      ],
+      "description": "Current status of the job posting"
+    },
+    "normalization_warnings": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Warnings from normalization/cleaning process (e.g., fuzzy match below threshold, missing fields)"
+    },
+    "analysis": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Scoring and analysis results from pipeline stages",
+      "properties": {
+        "hard_filter": {
+          "type": "object",
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "missing_skills": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "passed",
+            "reasons",
+            "missing_skills"
+          ]
+        },
+        "screening": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "decision": {
+              "type": "string",
+              "enum": [
+                "apply",
+                "maybe",
+                "skip",
+                "unknown"
+              ]
+            },
+            "score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "filtered": {
+              "type": "boolean"
+            },
+            "filter_reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "seniority": {
+              "type": "string"
+            },
+            "match_scores": {
+              "type": "object",
+              "properties": {
+                "tech_match": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "function_match": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "domain_match": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "experience_match": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "growth_potential": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "skills": {
+              "type": "object",
+              "properties": {
+                "gis": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "devops": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "programming": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "gap_analysis": {
+              "type": "object",
+              "properties": {
+                "missing_skills": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "risk_factors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "leverage_points": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "summary": {
+              "type": "string"
+            },
+            "rules_version": {
+              "type": "string"
+            },
+            "model_version": {
+              "type": "string"
+            }
+          }
+        },
+        "ranking": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "final_score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "thinking_trace": {
+              "type": "string"
+            },
+            "kernel_version": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "greenhouse.job-12345",
+  "source": "greenhouse",
+  "source_job_id": "job-12345",
+  "canonical_url": "https://boards-api.greenhouse.io/v1/boards/mapworks/jobs/job-12345",
+  "title": "Backend Engineer - Maps Platform",
+  "company": "MapWorks",
+  "location": "Amsterdam",
+  "employment_type": "CDI",
+  "remote": "Yes",
+  "salary": "65k-85k EUR",
+  "description": "MapWorks Maps Platform team is hiring a Backend Engineer. You will build high-performance APIs for mapping and location services using Go, Python, Kubernetes, and PostgreSQL. Experience with distributed systems, gRPC, and cloud-native architectures required. 4+ years experience.",
+  "published_at": "2026-10-03T11:00:00Z",
+  "discovered_at": "2026-10-10T12:00:00Z",
+  "first_seen_at": "2026-10-10T12:00:00Z",
+  "last_seen_at": "2026-10-10T12:00:00Z",
+  "content_hash": "2892c899ea56baf47c769f844ca34f69fd752b8d7a86b5e3613a996d725e262d",
+  "status": "active",
+  "normalization_warnings": [],
+  "analysis": {
+    "hard_filter": {
+      "passed": true,
+      "reasons": [],
+      "missing_skills": []
+    },
+    "screening": null,
+    "ranking": {
+      "final_score": 72.0,
+      "thinking_trace": "Good tech match (Python, K8s, PostgreSQL, distributed systems), location bonus (Amsterdam/Remote), no domain screening in global mode.",
+      "kernel_version": "1.0"
+    }
+  }
+}

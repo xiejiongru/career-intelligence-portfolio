@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "indeed.url.21548823e2eea3cb",
+  "source": "indeed",
+  "source_job_id": null,
+  "canonical_url": "https://fr.indeed.com/viewjob?jk=a1b2c3d4e5f67890",
+  "title": "DevOps Engineer (Alternance)",
+  "company": "Company A",
+  "location": "Grenoble",
+  "employment_type": "Alternance",
+  "remote": "No",
+  "salary": null,
+  "description": "Alternance DevOps position at Company A. 2-year apprenticeship. You will work on CI/CD pipelines, Kubernetes, Terraform, and monitoring. Must be enrolled in a French engineering school. Not a full-time position.",
+  "published_at": "2026-10-08T14:00:00Z",
+  "discovered_at": "2026-10-10T12:00:00Z",
+  "first_seen_at": "2026-10-10T12:00:00Z",
+  "last_seen_at": "2026-10-10T12:00:00Z",
+  "content_hash": "7d4b67531aced0bfe107e6dcaff603773a31f7ba2cfe1df47e8b7c0705f45720",
+  "status": "active",
+  "normalization_warnings": [],
+  "analysis": {
+    "hard_filter": {
+      "passed": false,
+      "reasons": [
+        "job_type_not_allowed: Alternance not in allowed_job_types"
+      ],
+      "missing_skills": []
+    },
+    "screening": null,
+    "ranking": null
+  }
+}

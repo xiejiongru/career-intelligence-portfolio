@@ -1,0 +1,172 @@
+# CI — builds dependency image once, all jobs run inside via container: directive.
+# Docker layer cache (type=gha) makes builds near-instant when deps unchanged.
+name: CI
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - '**.md'
+      - 'assets/**'
+      - 'docs/**'
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name != 'master' }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.extract.outputs.sha-tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.ci
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # metadata-action outputs newline-separated full refs
+      # (ghcr.io/<image>:sha-<short>). Dependent jobs need the full ref.
+      - name: Extract sha tag
+        id: extract
+        run: |
+          SHA_REF=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | grep -E '^[^ ]+:sha-[0-9a-f]+$' | head -n 1)
+          if [ -z "$SHA_REF" ]; then
+            echo "::error::No sha- tag found in metadata output"
+            exit 1
+          fi
+          echo "sha-tag=$SHA_REF" >> "$GITHUB_OUTPUT"
+
+  lint:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build.outputs.image-tag }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: ruff check . --output-format=github
+      - run: echo "## Lint Passed" >> $GITHUB_STEP_SUMMARY
+        if: success() || failure()
+
+  unit:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build.outputs.image-tag }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run offline unit tests (fixtures only)
+        run: |
+          PYTHONPATH=. python -m pytest \
+            tests/unit/test_hard_filter.py \
+            tests/unit/test_ranker.py \
+            tests/unit/test_platform_scraper.py \
+            tests/unit/test_thinking_kernel.py \
+            tests/test_job_record.py \
+            tests/test_entity_resolver.py \
+            tests/test_schemas.py \
+            -v --tb=short
+      - run: echo "## Unit Tests Passed" >> $GITHUB_STEP_SUMMARY
+        if: success() || failure()
+
+  contract:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build.outputs.image-tag }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run contract tests (JobRecord schema, entity resolver fixtures)
+        run: |
+          PYTHONPATH=. python -m pytest \
+            tests/test_job_record.py::TestValidateJobRecord \
+            tests/test_job_record.py::TestJobRecordFixtures \
+            tests/test_entity_resolver.py \
+            -v --tb=short
+      - run: echo "## Contract Tests Passed" >> $GITHUB_STEP_SUMMARY
+        if: success() || failure()
+
+  run:
+    if: github.ref_name == 'master' && github.event_name != 'pull_request'
+    needs: [build, lint, unit, contract]
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.build.outputs.image-tag }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate demo JobRecords against schema
+        run: |
+          PYTHONPATH=. python - <<'EOF'
+          import glob
+          import json
+          import sys
+
+          from jsonschema import Draft7Validator
+
+          schema = json.load(open("schemas/job-record-v1.json", encoding="utf-8"))
+          validator = Draft7Validator(schema)
+          failed = 0
+
+          for path in sorted(glob.glob("data/demo/job_record_demo_*.json")):
+              record = json.load(open(path, encoding="utf-8"))
+              for err in validator.iter_errors(record):
+                  print(f"::error file={path}::{err.message}")
+                  failed += 1
+
+          for i, line in enumerate(open("data/demo/job_records_demo.jsonl", encoding="utf-8"), 1):
+              if not line.strip():
+                  continue
+              for err in validator.iter_errors(json.loads(line)):
+                  print(f"::error file=data/demo/job_records_demo.jsonl,line={i}::{err.message}")
+                  failed += 1
+
+          if failed:
+              sys.exit(1)
+          print("All demo JobRecords valid against job-record-v1")
+          EOF
+      - run: echo "## Demo Data Validated" >> $GITHUB_STEP_SUMMARY
+        if: success() || failure()
