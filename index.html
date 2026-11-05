@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.github.com; form-action 'none'; base-uri 'none'">
+<title>Job Pipeline Dashboard</title>
+<link rel="stylesheet" href="app.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <strong>Job Pipeline</strong>
+    <span class="muted">职位聚合看板 · 数据来自私有仓，令牌只留在本机</span>
+  </div>
+  <div class="topbar-right">
+    <span id="snapinfo" class="muted"></span>
+    <button id="logout" type="button" class="ghost">退出并清除令牌</button>
+  </div>
+</header>
+
+<section id="auth" class="auth">
+  <form id="auth-form" class="auth-card">
+    <h1>读取私有快照</h1>
+    <p class="muted">站点本身只有代码，没有任何职位数据。数据存在 <code>xiejiongru/job_pipeline</code> 的 <code>dashboard-data</code> 分支里，需要一把只读令牌才能看到。</p>
+    <label>
+      Fine-grained PAT（仅 Contents: Read-only）
+      <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+    </label>
+    <p class="warn">令牌只写进本机 localStorage，只发往 api.github.com；不会进 URL、日志或仓库。若此页被注入脚本，令牌可被读走 —— 这道门防的是路人，不是定向攻击。</p>
+    <details>
+      <summary>仓库与分支（默认已填好）</summary>
+      <div class="row">
+        <label>owner <input id="owner" type="text" spellcheck="false"></label>
+        <label>repo <input id="repo" type="text" spellcheck="false"></label>
+        <label>ref <input id="ref" type="text" spellcheck="false"></label>
+      </div>
+    </details>
+    <div class="row">
+      <button type="submit">加载看板</button>
+      <button id="forget-token" type="button" class="ghost">清除已存令牌</button>
+    </div>
+    <p id="auth-note" class="muted" hidden>本地目录预览模式（<code>?mode=local</code>），不涉及令牌。</p>
+  </form>
+</section>
+
+<main id="app" hidden>
+  <p id="status" class="status" role="status"></p>
+  <div id="errbox" class="errbox" hidden></div>
+  <nav id="tabs" class="tabs" aria-label="看板视图"></nav>
+  <div id="view" class="view"></div>
+</main>
+
+<footer class="footer muted">
+  数据契约由 <code>pipeline/dashboard/policy.yaml</code> 定义；发布器强制排除私人字段。
+</footer>
+</body>
+</html>
