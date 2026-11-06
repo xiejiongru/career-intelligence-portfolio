@@ -27,6 +27,7 @@ const TABLE_COLUMNS = [
   "country",
   "location",
   "salary",
+  "salary_gross_min",
   "published_at",
   "source",
   "final_score",
@@ -41,7 +42,7 @@ const TABLE_COLUMNS = [
 ];
 const DETAIL_GROUPS = [
   ["职位身份", ["job_id", "source", "source_job_id", "canonical_url", "status", "content_hash", "schema_version"]],
-  ["基本信息", ["title", "company", "location", "country", "employment_type", "remote", "salary", "published_at"]],
+  ["基本信息", ["title", "company", "location", "country", "employment_type", "remote", "salary", "salary_gross_min", "salary_gross_max", "salary_basis", "published_at"]],
   ["时间线", ["discovered_at", "first_seen_at", "last_seen_at", "missed_runs", "closed_at"]],
   ["程序评分", ["final_score", "decision", "screening_score", "seniority", "score_tech_match", "score_function_match", "score_domain_match", "score_experience_match", "score_growth_potential", "rules_version", "model_version", "kernel_version"]],
   ["判定与依据", ["hard_filter_passed", "hard_filter_reasons", "filter_reasons", "missing_skills", "risk_factors", "leverage_points", "summary", "thinking_trace", "normalization_warnings"]],
@@ -303,7 +304,7 @@ function renderOverview() {
         ["最近一轮新增", latest.new_records ?? newThisRun, seenDay ? `首轮出现于 ${seenDay}` : "无历史轮次"],
         ["判定可投 apply", stats.apply, `待定 ${stats.needs_review} · 拦截 ${stats.skip}`],
         ["中位评分", stats.median_score ?? "—", `${stats.scored} 条已评分`],
-        ["有薪资字段", stats.with_salary, stats.with_salary ? "薪资为原文照录，未做归一化" : "本轮数据里没有薪资，图表不画"],
+        ["有薪资数值", stats.with_salary_numeric, stats.with_salary ? `字段 ${stats.basis_field} · 正文解析 ${stats.basis_text}` : "本轮没有可读的薪资数字"],
         ["有发布日期", stats.with_published_at, stats.oldest ? `${stats.oldest} → ${stats.newest}` : "全部缺日期"],
       ]),
     ])
@@ -337,16 +338,34 @@ function renderOverview() {
 }
 
 function salarySection(rows) {
-  const withSalary = rows.filter((row) => String(row.salary || "").trim());
-  if (!withSalary.length) {
-    return section("薪资分布", [h("p", { class: "muted" }, `${rows.length} 条职位里 0 条带薪资原文。爬虫不编造薪资，所以这里没有图。`)]);
+  const numeric = rows.filter((row) => row.salary_gross_min !== "" && Number(row.salary_gross_min) > 0);
+  const raw = rows.filter((row) => String(row.salary || "").trim());
+  if (!numeric.length) {
+    if (!raw.length) {
+      return section("薪资分布", [h("p", { class: "muted" }, `${rows.length} 条职位里 0 条带可读的欧元薪资。爬虫不编造薪资，所以这里没有图。`)]);
+    }
+    const counts = new Map();
+    for (const row of raw) counts.set(row.salary.trim(), (counts.get(row.salary.trim()) || 0) + 1);
+    return section("薪资原文分组（未数值化）", [barChart([...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12))]);
   }
-  const counts = new Map();
-  for (const row of withSalary) counts.set(row.salary.trim(), (counts.get(row.salary.trim()) || 0) + 1);
-  return section(
-    "薪资分布（原文，未归一化）",
-    [barChart([...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12), { title: `${withSalary.length} 条带薪资` })]
-  );
+  const basis = { field: 0, text: 0 };
+  for (const row of numeric) basis[row.salary_basis] = (basis[row.salary_basis] || 0) + 1;
+  const ceilings = numeric.filter((row) => row.salary_gross_max !== "");
+  const caption = h("p", { class: "muted" }, [
+    `${numeric.length} 条有数值区间：雇主字段直述 ${basis.field} 条，JD 正文解析 ${basis.text} 条。`,
+    `图按区间下界统计；${numeric.length - ceilings.length} 条只写了"à partir de"这类下界，无上界。`,
+    `正文解析的下限闸门是 5,000 €/年（低于它的一律视为非薪资数字），该闸门只作用于看板，不改过滤逻辑。`,
+  ]);
+  const rawCounts = new Map();
+  for (const row of raw) rawCounts.set(row.salary.trim(), (rawCounts.get(row.salary.trim()) || 0) + 1);
+  return section("薪资分布（毛年薪，€）", [
+    caption,
+    histogram(numeric.map((row) => row.salary_gross_min), { title: "区间下界", bins: 12 }),
+    ceilings.length
+      ? histogram(ceilings.map((row) => row.salary_gross_max), { title: "区间上界", bins: 12 })
+      : h("p", { class: "muted" }, "没有任何条目带可读的上界。"),
+    barChart([...rawCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8), { title: "原文写法 Top 8（数值化的输入长什么样）" }),
+  ]);
 }
 
 function trendChart() {
@@ -620,7 +639,7 @@ function filterPanel() {
     ])
   );
 
-  for (const facet of ["country", "city", "company", "source", "employment_type", "seniority", "decision", "remote", "status"]) {
+  for (const facet of ["country", "city", "company", "source", "employment_type", "seniority", "decision", "remote", "status", "salary_basis"]) {
     const entries = state.dataset.facets[facet] || [];
     if (!entries.length) continue;
     panel.appendChild(facetBlock(facet, entries));

@@ -4,6 +4,8 @@
 const NUMERIC = new Set([
   "final_score",
   "screening_score",
+  "salary_gross_min",
+  "salary_gross_max",
   "score_tech_match",
   "score_function_match",
   "score_domain_match",
@@ -35,6 +37,7 @@ export const FACETS = [
   "decision",
   "status",
   "remote",
+  "salary_basis",
 ];
 
 function norm(value) {
@@ -146,6 +149,9 @@ export function statsFor(rows) {
     needs_review: rows.filter((row) => row.decision === "needs_review").length,
     skip: rows.filter((row) => row.decision === "skip").length,
     with_salary: rows.filter((row) => String(row.salary || "").trim()).length,
+    with_salary_numeric: rows.filter((row) => Number(row.salary_gross_min) > 0).length,
+    basis_field: rows.filter((row) => row.salary_basis === "field").length,
+    basis_text: rows.filter((row) => row.salary_basis === "text").length,
     with_published_at: dated.length,
     median_score: scores.length ? quantile(scores.slice().sort((a, b) => a - b), 0.5) : null,
     newest: dated.length ? dated[dated.length - 1] : "",
