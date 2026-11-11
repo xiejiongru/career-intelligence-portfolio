@@ -125,6 +125,11 @@ Every code push builds a dependency image (`Dockerfile.ci`, tagged `sha-<commit>
 - [ADR 0005 — Test strategy](docs/adr/0005-test-strategy.md)
 - [Field source matrix](pipeline/output/FIELD_SOURCE_MATRIX.md)
 
-## License
+## Copyright
 
-MIT — see [LICENSE](LICENSE).
+Copyright (c) 2026 Jiongru Xie.
+
+All Rights Reserved.
+
+This repository is publicly available for viewing and evaluation purposes only.
+No permission is granted to use, copy, modify, distribute, sublicense, or commercially exploit this software without prior written permission from the copyright holder.
