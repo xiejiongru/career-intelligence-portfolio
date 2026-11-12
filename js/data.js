@@ -1,7 +1,10 @@
 // Row model: faceting, filtering, sorting. Everything is derived from the loaded
 // snapshot; nothing here talks to the network.
 
+import { gateOf, priorityOf, tierOf } from "./tiers.js";
+
 const NUMERIC = new Set([
+  "priority",
   "final_score",
   "screening_score",
   "salary_gross_min",
@@ -66,7 +69,19 @@ export function dayOf(value) {
 }
 
 export function createDataset(rows) {
-  const byCity = rows.map((row) => ({ ...row, city: cityOf(row), posted_day: dayOf(row.published_at), seen_day: dayOf(row.last_seen_at) }));
+  const byCity = rows.map((row) => {
+    const tier = tierOf(row);
+    return {
+      ...row,
+      city: cityOf(row),
+      posted_day: dayOf(row.published_at),
+      seen_day: dayOf(row.last_seen_at),
+      first_seen_day: dayOf(row.first_seen_at),
+      tier,
+      gate: gateOf(row, tier),
+      priority: priorityOf(row, tier),
+    };
+  });
   const facets = {};
   for (const key of FACETS) {
     facets[key] = counts(byCity.map((row) => row[key] || "(空)"));
@@ -91,8 +106,15 @@ export function filterRows(rows, query) {
   const statuses = query.overlayStatuses || null;
   const getOverlay = query.getOverlay || (() => "");
   const descriptions = query.descriptions || null;
+  const tiers = query.tiers || null;
+  const hideClosed = query.hideClosed === true;
+  const hideVisited = query.hideVisited === true;
+  const isVisited = query.isVisited || (() => false);
 
   return rows.filter((row) => {
+    if (tiers && tiers.length && !tiers.includes(row.tier)) return false;
+    if (hideClosed && row.status === "closed") return false;
+    if (hideVisited && isVisited(row.job_id)) return false;
     for (const [key, allowed] of Object.entries(facets)) {
       if (!allowed || !allowed.length) continue;
       const value = key === "city" ? row.city : row[key] || "(空)";
@@ -124,15 +146,21 @@ function inRange(value, range) {
 }
 
 export function sortRows(rows, sort) {
-  if (!sort || !sort.column) return rows;
-  const { column, direction } = sort;
-  const factor = direction === "asc" ? 1 : -1;
-  const numeric = NUMERIC.has(column);
+  const keys = Array.isArray(sort) ? sort : (sort && sort.column ? [sort] : []);
+  if (!keys.length) return rows;
+  const cmps = keys.map((key) => {
+    const column = key.column;
+    const factor = key.direction === "asc" ? 1 : -1;
+    const numeric = NUMERIC.has(column);
+    return { column, factor, numeric };
+  });
   return [...rows].sort((a, b) => {
-    const left = numeric ? Number(a[column]) || 0 : String(a[column] ?? "");
-    const right = numeric ? Number(b[column]) || 0 : String(b[column] ?? "");
-    if (left === right) return String(a.job_id).localeCompare(String(b.job_id));
-    return (left > right ? 1 : -1) * factor;
+    for (const cmp of cmps) {
+      const left = cmp.numeric ? Number(a[cmp.column]) || 0 : String(a[cmp.column] ?? "");
+      const right = cmp.numeric ? Number(b[cmp.column]) || 0 : String(b[cmp.column] ?? "");
+      if (left !== right) return (left > right ? 1 : -1) * cmp.factor;
+    }
+    return String(a.job_id).localeCompare(String(b.job_id));
   });
 }
 

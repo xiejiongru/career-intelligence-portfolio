@@ -18,30 +18,40 @@ import {
 import { cityOf, createDataset, filterRows, sortRows, statsFor } from "./data.js";
 import { barChart, histogram, lineChart, toOrdinal } from "./charts.js";
 import { download, stamp, toCsv } from "./csv.js";
-import { STATUSES, createOverlay } from "./overlay.js";
+import { STATUSES, createOverlay, createVisited } from "./overlay.js";
+import { TIERS } from "./tiers.js";
 
 const VIEWS = ["overview", "explorer", "history", "settings"];
-const TABLE_COLUMNS = [
-  "title",
-  "company",
-  "country",
-  "location",
-  "salary",
-  "salary_gross_min",
-  "published_at",
-  "source",
-  "final_score",
-  "decision",
-  "seniority",
-  "employment_type",
-  "remote",
-  "status",
-  "first_seen_at",
-  "last_seen_at",
-  "url",
+
+// The table shows what you scan by; everything else (country, remote, first/last seen,
+// per-dimension scores, ...) lives in the detail panel and the CSV export, which still
+// carries every column. `sort` is the row field a header click sorts by.
+const TABLE_HEAD = [
+  { key: "link", label: "↗", title: "打开原招聘页（新标签页）" },
+  { key: "check", label: "" },
+  { key: "score", label: "评分 / 档位", sort: "priority", title: "默认按「档位 + 分数」排序：先是通过闸门的高分岗位，被拦截和已关闭的沉底" },
+  { key: "title", label: "职位", sort: "title" },
+  { key: "company", label: "公司", sort: "company" },
+  { key: "location", label: "地点", sort: "city" },
+  { key: "salary", label: "薪资", sort: "salary_gross_min" },
+  { key: "employment_type", label: "合同", sort: "employment_type" },
+  { key: "published_at", label: "发布", sort: "published_at" },
+  { key: "source", label: "来源", sort: "source" },
+  { key: "status", label: "招聘", sort: "status" },
+  { key: "mine", label: "我的状态", title: "只存本机浏览器" },
 ];
+const SORT_CHOICES = [
+  ["priority", "推荐（档位 + 分数）"],
+  ["final_score", "纯分数"],
+  ["published_at", "发布时间"],
+  ["first_seen_at", "首次出现"],
+];
+// Application stages that deserve a visible marker on the row.
+const STAGE_CLASS = { 已投递: "st-live", 已回复: "st-live", 面试中: "st-live", Offer: "st-live", 拒绝: "st-dead", 放弃: "st-dead", 已关闭: "st-dead" };
 const DETAIL_GROUPS = [
-  ["职位身份", ["job_id", "source", "source_job_id", "canonical_url", "status", "content_hash", "schema_version"]],
+  // The snapshot's link column is `url`; `canonical_url` is not in it, so listing that
+  // here showed "—" for every job.
+  ["职位身份", ["job_id", "source", "source_job_id", "url", "status", "content_hash", "schema_version"]],
   ["基本信息", ["title", "company", "location", "country", "employment_type", "remote", "salary", "salary_gross_min", "salary_gross_max", "salary_basis", "published_at"]],
   ["时间线", ["discovered_at", "first_seen_at", "last_seen_at", "missed_runs", "closed_at"]],
   ["程序评分", ["final_score", "decision", "screening_score", "seniority", "score_tech_match", "score_function_match", "score_domain_match", "score_experience_match", "score_growth_potential", "rules_version", "model_version", "kernel_version"]],
@@ -58,13 +68,18 @@ const state = {
   dataset: null,
   descriptions: null,
   overlay: createOverlay(),
-  query: { text: "", facets: {}, scoreRange: [null, null], dateRange: { start: "", end: "" }, statuses: [], searchJd: false },
-  sort: { column: "final_score", direction: "desc" },
+  visited: createVisited(),
+  query: freshQuery({ hideClosed: getPrefs().hideClosed === true, hideVisited: getPrefs().hideVisited === true }),
+  sort: { column: "priority", direction: "desc" },
+  skipOverlayRender: false,
   page: 0,
   pageSize: 50,
   selected: new Set(),
   activeJob: "",
   legacyOnly: getPrefs().legacyOnly === true,
+  density: getPrefs().density || "standard",
+  visibleCols: getPrefs().visibleCols || ["title", "company", "location", "score", "salary", "published_at"],
+  colsConfigOpen: false,
   view: "overview",
   loading: false,
   error: "",
@@ -93,14 +108,82 @@ function clear(node) {
   return node;
 }
 
+function shortDate(value) {
+  const text = String(value || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return text || "—";
+  const [y, m, d] = text.split("-");
+  const months = ["jan", "fév", "mar", "avr", "mai", "juin", "juil", "août", "sep", "oct", "nov", "déc"];
+  return `${Number(d)} ${months[Number(m) - 1]} ${y}`;
+}
+
 function pretty(name) {
   return name.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function cellText(row, column) {
-  if (column === "url") return row.url || "";
   const value = row[column];
   return value === undefined || value === null ? "" : String(value);
+}
+
+function freshQuery(overrides = {}) {
+  return {
+    text: "",
+    facets: {},
+    scoreRange: [null, null],
+    dateRange: { start: "", end: "" },
+    statuses: [],
+    searchJd: false,
+    tiers: [],
+    hideClosed: false,
+    hideVisited: false,
+    ...overrides,
+  };
+}
+
+// Only ever hand http(s) URLs to an href: the data is ours, but a javascript: URL in a
+// scraped field would otherwise become a click-to-run link.
+function safeUrl(value) {
+  const text = String(value || "").trim();
+  return /^https?:\/\//i.test(text) ? text : "";
+}
+
+function hostOf(href) {
+  try {
+    return new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    return href;
+  }
+}
+
+function tierMeta(id) {
+  return TIERS.find((tier) => tier.id === id) || TIERS[TIERS.length - 1];
+}
+
+// Opening a posting (via the link icon or its detail panel) marks it as seen. The row is
+// updated in place; re-rendering the table here would reset the scroll position.
+function markVisited(jobId, rowNode) {
+  state.visited.mark(jobId);
+  if (rowNode) rowNode.classList.add("is-visited");
+}
+
+function externalLink(row, { rowNode = null, text = "↗", className = "ext" } = {}) {
+  const href = safeUrl(row.url) || safeUrl(row.canonical_url);
+  if (!href) return null;
+  const onOpen = () => markVisited(row.job_id, rowNode);
+  return h("a", {
+    class: className,
+    href,
+    target: "_blank",
+    rel: "noopener noreferrer",
+    title: `打开原招聘页 · ${hostOf(href)}`,
+    "aria-label": `打开原招聘页：${row.title || ""}`,
+    onclick: onOpen,
+    // Middle-click opens a tab without a click event.
+    onauxclick: (event) => {
+      if (event.button === 1) onOpen();
+    },
+    text,
+  });
 }
 
 // ---------------------------------------------------------------- boot
@@ -121,8 +204,12 @@ export function boot() {
   const localMode = params.get("mode") === "local";
 
   bindAuth(localMode);
+  readUrlState();
+  setupKeyboardNav();
+  applyDensity();
   bindTabs();
   state.overlay.onChange(() => {
+    if (state.skipOverlayRender) return;
     if (state.view === "explorer") renderExplorer();
   });
   window.addEventListener("jobdash:error", (event) => showError(event.detail));
@@ -231,6 +318,11 @@ function showError(text) {
   clear(els.errbox);
   els.errbox.hidden = false;
   els.errbox.appendChild(h("div", { class: "error-box" }, text));
+  if (text.includes("快照分支")) {
+    els.errbox.appendChild(h("p", { class: "muted" }, "下一步：运行一次爬虫工作流（scraper-cron.yml），它会发布 snapshot 到 dashboard-data 分支。"));
+  } else if (text.includes("令牌") || text.includes("401") || text.includes("403")) {
+    els.errbox.appendChild(h("p", { class: "muted" }, "下一步：检查 PAT 是否过期，或重新生成一把只读 token。"));
+  }
 }
 
 function snapshotLine(label) {
@@ -262,6 +354,83 @@ function tabLabel(view) {
 
 // ---------------------------------------------------------------- render
 
+function pushUrlState() {
+  try {
+    const params = new URLSearchParams();
+    if (state.view && state.view !== "overview") params.set("view", state.view);
+    if (state.activeJob) params.set("job", state.activeJob);
+    if (state.query.text) params.set("q", state.query.text);
+    if (state.query.tiers && state.query.tiers.length) params.set("tiers", state.query.tiers.join(","));
+    if (state.hideClosed) params.set("hideClosed", "1");
+    if (state.hideVisited) params.set("hideVisited", "1");
+    if (state.sort && state.sort.column) { params.set("sort", state.sort.column); params.set("dir", state.sort.direction); }
+    if (state.page) params.set("page", String(state.page));
+    const qs = params.toString();
+    const url = qs ? `${location.pathname}?${qs}` : location.pathname;
+    history.replaceState(null, "", url);
+  } catch (e) { /* ignore URL API failures */ }
+}
+
+function readUrlState() {
+  try {
+    const params = new URLSearchParams(location.search);
+    if (params.has("view")) state.view = params.get("view");
+    if (params.has("job")) state.activeJob = params.get("job");
+    if (params.has("q")) state.query.text = params.get("q");
+    if (params.has("tiers")) state.query.tiers = params.get("tiers").split(",").filter(Boolean);
+    if (params.has("hideClosed")) state.query.hideClosed = true;
+    if (params.has("hideVisited")) state.query.hideVisited = true;
+    if (params.has("sort")) state.sort.column = params.get("sort");
+    if (params.has("dir")) state.sort.direction = params.get("dir");
+    if (params.has("page")) state.page = Number(params.get("page")) || 0;
+  } catch (e) { /* ignore */ }
+}
+
+function setupKeyboardNav() {
+  document.addEventListener("keydown", (event) => {
+    if (event.target && (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA" || event.target.tagName === "SELECT")) return;
+    if (event.key === "Escape") { closeJob(); return; }
+    if (state.view !== "explorer") return;
+    const rows = filteredRows();
+    if (!rows.length) return;
+    const idx = rows.findIndex((r) => r.job_id === state.activeJob);
+    if (event.key === "j" || event.key === "ArrowDown") {
+      event.preventDefault();
+      const next = Math.min(rows.length - 1, idx < 0 ? 0 : idx + 1);
+      openJob(rows[next].job_id);
+    } else if (event.key === "k" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const prev = Math.max(0, idx < 0 ? 0 : idx - 1);
+      openJob(rows[prev].job_id);
+    } else if (event.key === "Enter" && idx >= 0) {
+      event.preventDefault();
+      const url = rows[idx].url;
+      if (url) window.open(url, "_blank", "noopener");
+    } else if (event.key === "x" && idx >= 0) {
+      event.preventDefault();
+      state.overlay.set(rows[idx].job_id, { status: "\u5df2\u6295\u9012" });
+      const tr = document.querySelector('tr[data-job="' + rows[idx].job_id + '"]');
+      if (tr) tr.className = rowClass(rows[idx]);
+    } else if (event.key === "e" && idx >= 0) {
+      event.preventDefault();
+      const id = rows[idx].job_id;
+      const note = prompt("\u5907\u6ce8\uff1a", state.overlay.get(id).notes || "");
+      if (note !== null) state.overlay.set(id, { notes: note });
+    } else if (event.key === "v" && idx >= 0) {
+      event.preventDefault();
+      const url = rows[idx].url;
+      if (url) window.open(url, "_blank", "noopener");
+    }
+  });
+}
+
+
+function applyDensity() {
+  document.body.classList.remove("density-compact", "density-standard", "density-loose");
+  document.body.classList.add("density-" + (state.density || "standard"));
+  setPref("density", state.density);
+}
+
 function render() {
   clear(els.view);
   if (!state.manifest) {
@@ -289,6 +458,29 @@ function kpiGrid(items) {
 
 // ----------------------------------------------------------- overview
 
+function renderTodoSection() {
+  const base = baseRows();
+  const newDay = state.runs[0] && state.runs[0].completed_at ? String(state.runs[0].completed_at).slice(0, 10) : "";
+  const newRows = newDay ? base.filter((row) => row.first_seen_day === newDay) : [];
+  const unseenApply = base.filter((row) => row.decision === "apply" && !state.visited.has(row.job_id) && row.status !== "closed");
+  const topUnseen = unseenApply.slice(0, 8);
+  return h("section", { class: "card todo-section" }, [
+    h("h2", {}, "今日 / 待办"),
+    h("div", { class: "kpis" }, [
+      h("div", { class: "kpi" }, [h("div", { class: "kpi-value", text: String(newRows.length) }), h("div", { class: "kpi-label", text: "本轮新增" })]),
+      h("div", { class: "kpi" }, [h("div", { class: "kpi-value", text: String(unseenApply.length) }), h("div", { class: "kpi-label", text: "未查看且 apply" })]),
+      h("div", { class: "kpi" }, [h("div", { class: "kpi-value", text: String(base.filter((r) => r.decision === "apply").length) }), h("div", { class: "kpi-label", text: "apply 总数" })]),
+    ]),
+    h("h3", {}, "未查看且 apply 的职位"),
+    topUnseen.length ? h("ul", { class: "linklist" }, topUnseen.map((row) =>
+      h("li", {}, [
+        h("a", { href: "#", onclick: (e) => { e.preventDefault(); openJob(row.job_id); }, text: row.title }),
+        h("span", { class: "muted", text: " · " + (row.company || "") + " · " + (row.final_score || "—") + " 分" }),
+      ])
+    )) : h("p", { class: "muted" }, "没有未查看的 apply 职位。"),
+  ]);
+}
+
 function renderOverview() {
   const rows = state.rows;
   const stats = statsFor(rows);
@@ -297,6 +489,7 @@ function renderOverview() {
   const newThisRun = rows.filter((row) => seenDay && String(row.first_seen_at || "").slice(0, 10) === seenDay).length;
 
   clear(els.view);
+  els.view.appendChild(renderTodoSection());
   els.view.appendChild(
     section("市场总览", [
       kpiGrid([
@@ -432,8 +625,10 @@ function listBlock(rows, label) {
 
 // ----------------------------------------------------------- explorer
 
-function filteredRows() {
-  const rows = filterRows(state.rows, {
+// Everything except the tier chips, so each chip can show how many rows it would give
+// under the *other* active filters.
+function baseRows() {
+  return filterRows(state.rows, {
     text: state.query.text,
     facets: state.query.facets,
     scoreRange: state.query.scoreRange,
@@ -442,12 +637,21 @@ function filteredRows() {
     getOverlay: (id) => state.overlay.get(id),
     searchJd: state.query.searchJd,
     descriptions: state.query.searchJd ? state.descriptions : null,
+    hideClosed: state.query.hideClosed,
+    hideVisited: state.query.hideVisited,
+    isVisited: (id) => state.visited.has(id),
   });
+}
+
+function filteredRows(base = baseRows()) {
+  const picked = state.query.tiers;
+  const rows = picked.length ? base.filter((row) => picked.includes(row.tier)) : base;
   return sortRows(rows, state.sort);
 }
 
 function renderExplorer() {
-  const rows = filteredRows();
+  const base = baseRows();
+  const rows = filteredRows(base);
   state.lastCount = rows.length;
   const pages = Math.max(1, Math.ceil(rows.length / state.pageSize));
   if (state.page >= pages) state.page = 0;
@@ -457,17 +661,145 @@ function renderExplorer() {
   const layout = h("div", { class: "explorer" });
   layout.appendChild(filterPanel());
   const main = h("div", { class: "explorer-main" });
+  main.appendChild(quickbar(base));
   main.appendChild(toolbar(rows.length));
+  // Active filter chips: show what's currently filtering so the user can see and remove.
+  const chips = [];
+  if (state.query.text) chips.push({ label: `搜索: ${state.query.text}`, remove: () => { state.query.text = ""; renderExplorer(); pushUrlState(); } });
+  if (state.query.tiers && state.query.tiers.length) chips.push({ label: `档位: ${state.query.tiers.join(",")}`, remove: () => { state.query.tiers = []; renderExplorer(); pushUrlState(); } });
+  for (const [key, allowed] of Object.entries(state.query.facets || {})) {
+    if (allowed && allowed.length) chips.push({ label: `${key}: ${allowed.join(",")}`, remove: () => { delete state.query.facets[key]; renderExplorer(); pushUrlState(); } });
+  }
+  if (state.query.hideClosed) chips.push({ label: "隐藏已关闭", remove: () => { state.query.hideClosed = false; setPref("hideClosed", false); renderExplorer(); pushUrlState(); } });
+  if (state.query.hideVisited) chips.push({ label: "隐藏已看过", remove: () => { state.query.hideVisited = false; setPref("hideVisited", false); renderExplorer(); pushUrlState(); } });
+  if (chips.length) {
+    const chipBar = h("div", { class: "filter-chips" }, [
+      ...chips.map((c) => h("span", { class: "filter-chip" }, [c.label, h("button", { type: "button", onclick: c.remove, text: "×" })])),
+      h("button", { type: "button", class: "ghost", onclick: () => { state.query = freshQuery({ hideClosed: false, hideVisited: false }); state.page = 0; renderExplorer(); pushUrlState(); }, text: "清除全部" }),
+    ]);
+    main.appendChild(chipBar);
+  }
   main.appendChild(tableBlock(pageRows, rows));
+  if (state.colsConfigOpen) {
+    const configPanel = h("div", { class: "card col-config" }, [
+      h("h3", {}, "列配置"),
+      h("div", { class: "checks" }, TABLE_HEAD.filter((c) => c.key !== "link" && c.key !== "check").map((col) =>
+        h("label", { class: "check" }, [
+          h("input", {
+            type: "checkbox",
+            checked: state.visibleCols.includes(col.key),
+            onchange: (event) => {
+              if (event.target.checked) state.visibleCols.push(col.key);
+              else state.visibleCols = state.visibleCols.filter((k) => k !== col.key);
+              setPref("visibleCols", state.visibleCols);
+              renderExplorer();
+            },
+          }),
+          col.label,
+        ])
+      )),
+      h("div", { class: "row" }, [
+        h("button", { type: "button", class: "ghost", onclick: () => { state.visibleCols = ["title", "company", "location", "score", "salary", "published_at"]; setPref("visibleCols", state.visibleCols); renderExplorer(); }, text: "恢复默认" }),
+        h("button", { type: "button", class: "ghost", onclick: () => { state.colsConfigOpen = false; renderExplorer(); }, text: "关闭" }),
+      ]),
+    ]);
+    main.appendChild(configPanel);
+  }
   main.appendChild(pager(pages, rows.length));
-  if (state.activeJob) main.appendChild(detailBlock(state.activeJob));
   layout.appendChild(main);
   els.view.appendChild(layout);
+  const backdrop = h("div", { class: "drawer-backdrop", id: "drawer-backdrop", onclick: () => closeJob() });
+  const drawer = h("aside", { class: "drawer", id: "drawer" }, [
+    h("button", { type: "button", class: "ghost drawer-close", onclick: () => closeJob(), text: "×" }),
+    h("div", { id: "drawer-body" }),
+  ]);
+  els.view.appendChild(backdrop);
+  els.view.appendChild(drawer);
+  if (state.activeJob) openDrawer(state.activeJob, false);
+}
+
+// Tier chips double as the colour legend and as filters; the sort box and the two hide
+// toggles are the everyday "work through the list" controls.
+function quickbar(base) {
+  const counts = Object.fromEntries(TIERS.map((tier) => [tier.id, 0]));
+  for (const row of base) counts[row.tier] += 1;
+  const picked = state.query.tiers;
+
+  const apply = () => {
+    state.page = 0;
+    renderExplorer();
+  };
+  const chip = (id, label, count, rule, on, onclick) =>
+    h("button", {
+      type: "button",
+      class: `chip tier-${id}${on ? " is-on" : ""}`,
+      "aria-pressed": String(on),
+      title: rule,
+      onclick,
+    }, [h("span", { class: "swatch" }), `${label} `, h("b", { text: String(count) })]);
+
+  const chips = [
+    chip("all", "全部", base.length, "不按档位过滤", picked.length === 0, () => {
+      state.query.tiers = [];
+      apply();
+    }),
+    ...TIERS.map((tier) =>
+      chip(tier.id, tier.label, counts[tier.id], tier.rule, picked.includes(tier.id), () => {
+        state.query.tiers = picked.includes(tier.id) ? picked.filter((id) => id !== tier.id) : [...picked, tier.id];
+        apply();
+      })
+    ),
+  ];
+
+  const toggle = (key, label) =>
+    h("label", { class: "check" }, [
+      h("input", {
+        type: "checkbox",
+        checked: state.query[key],
+        onchange: (event) => {
+          state.query[key] = event.target.checked;
+          setPref(key, event.target.checked);
+          apply();
+        },
+      }),
+      label,
+    ]);
+
+  const known = SORT_CHOICES.some(([column]) => column === state.sort.column);
+  const sortBox = h("label", { class: "muted" }, [
+    "排序 ",
+    h("select", {
+      onchange: (event) => {
+        state.sort = { column: event.target.value, direction: "desc" };
+        state.page = 0;
+        renderExplorer();
+      },
+    }, [
+      ...(known ? [] : [h("option", { value: state.sort.column, selected: true }, "按表头排序")]),
+      ...SORT_CHOICES.map(([column, label]) => h("option", { value: column, selected: column === state.sort.column }, label)),
+    ]),
+  ]);
+
+    const densityBox = h("label", { class: "muted" }, [
+    "density ",
+    h("select", {
+      onchange: (event) => { state.density = event.target.value; applyDensity(); },
+    }, [
+      h("option", { value: "compact", selected: state.density === "compact" }, "compact"),
+      h("option", { value: "standard", selected: state.density === "standard" }, "standard"),
+      h("option", { value: "loose", selected: state.density === "loose" }, "loose"),
+    ]),
+  ]);
+return h("div", { class: "quickbar" }, [
+    h("div", { class: "chips", role: "group", "aria-label": "按档位过滤" }, chips),
+    h("div", { class: "row" }, [toggle("hideClosed", "隐藏已关闭"), toggle("hideVisited", "隐藏已看过"), sortBox, densityBox]),
+  ]);
 }
 
 function toolbar(count) {
   const allOnPageChecked = count > 0 && pageRowsAreAllSelected();
-  return h("div", { class: "toolbar" }, [
+    const colBtn = h("button", { type: "button", class: "secondary", onclick: () => { state.colsConfigOpen = !state.colsConfigOpen; renderExplorer(); }, text: "列配置" });
+return h("div", { class: "toolbar" }, [
     h("span", { class: "muted sel-count", text: `筛选后 ${count} 条 · 选中 ${state.selected.size} 条` }),
     h("label", { class: "check" }, [
       h("input", {
@@ -490,6 +822,8 @@ function toolbar(count) {
       }),
       "导出只用 latest.csv 的 31 列",
     ]),
+
+  colBtn,
     h("button", { type: "button", onclick: () => exportCsv("all", null), text: "下载全部 CSV" }),
     h("button", { type: "button", onclick: () => exportCsv("filtered", filteredRows()), text: "下载筛选结果 CSV" }),
     h("button", {
@@ -536,48 +870,130 @@ function tableBlock(pageRows, allRows) {
   if (!allRows.length) {
     return h("p", { class: "muted" }, "没有符合当前条件的职位。放宽筛选或清空搜索词。");
   }
+  const visibleSet = new Set(state.visibleCols || []);
+  const visibleHead = TABLE_HEAD.filter((col) => col.key === "link" || col.key === "check" || visibleSet.has(col.key));
   const head = h("tr", {}, [
-    h("th", {}, ""),
-    ...TABLE_COLUMNS.map((column) =>
-      h(
+    ...visibleHead.map((col) => {
+      if (!col.sort) return h("th", { class: `col-${col.key}`, scope: "col", title: col.title }, col.label);
+      const active = state.sort.column === col.sort;
+      return h(
         "th",
         {
-          class: `sortable${state.sort.column === column ? " sorted" : ""}`,
+          class: `col-${col.key} sortable${active ? " sorted" : ""}`,
+          scope: "col",
+          "aria-sort": active ? (dir === "desc" ? "descending" : "ascending") : "none",
           onclick: () => {
-            state.sort = { column, direction: state.sort.column === column && state.sort.direction === "desc" ? "asc" : "desc" };
+            state.sort = { column: col.sort, direction: active && state.sort.direction === "desc" ? "asc" : "desc" };
             renderExplorer();
           },
-          title: `按 ${pretty(column)} 排序`,
+          title: col.title || `按「${col.label}」排序`,
         },
-        [pretty(column), state.sort.column === column ? (state.sort.direction === "desc" ? " ↓" : " ↑") : ""]
-      )
-    ),
-    h("th", {}, "我的状态"),
-    h("th", {}, "原链接"),
+        [col.label, active ? (state.sort.direction === "desc" ? " ↓" : " ↑") : ""]
+      );
+    }),
   ]);
 
-  const body = pageRows.map((row) => {
-    const overlay = state.overlay.get(row.job_id);
-    return h("tr", { class: `job-row${state.activeJob === row.job_id ? " is-active" : ""}` }, [
-      h("td", {}, h("input", {
-        type: "checkbox",
-        "data-job": row.job_id,
-        checked: state.selected.has(row.job_id),
-        onchange: (event) => {
-          if (event.target.checked) state.selected.add(row.job_id);
-          else state.selected.delete(row.job_id);
-          syncSelectionUi(state.lastCount);
-        },
-      })),
-      ...TABLE_COLUMNS.map((column) =>
-        h("td", { class: column }, column === "url" ? (row.url ? h("a", { href: row.url, target: "_blank", rel: "noopener noreferrer", text: "链接" }) : "") : cellText(row, column))
-      ),
-      h("td", {}, overlay.status || ""),
-      h("td", {}, h("button", { type: "button", onclick: () => openJob(row.job_id), text: "详情" })),
-    ]);
-  });
-
+  const newDay = state.runs[0] && state.runs[0].completed_at ? String(state.runs[0].completed_at).slice(0, 10) : "";
+  const body = pageRows.map((row) => jobRow(row, newDay));
   return h("div", { class: "table-scroll" }, h("table", { class: "grid" }, [h("thead", {}, head), h("tbody", {}, body)]));
+}
+
+function rowClass(row) {
+  const parts = ["job-row", `tier-${row.tier}`];
+  if (row.status === "closed") parts.push("is-closed");
+  if (state.visited.has(row.job_id)) parts.push("is-visited");
+  if (state.activeJob === row.job_id) parts.push("is-active");
+  const stage = STAGE_CLASS[state.overlay.get(row.job_id).status];
+  if (stage) parts.push(stage);
+  return parts.join(" ");
+}
+
+function scoreCell(row) {
+  const tier = tierMeta(row.tier);
+  const score = row.final_score === "" || row.final_score === undefined ? "—" : String(row.final_score);
+  // A blocked row says *why* instead of just "blocked": that is the whole point of the tag.
+  const tag = row.tier === "blocked" ? `✕ ${row.gate || tier.label}` : tier.label;
+  const reason = [tier.rule, row.filter_reasons || row.hard_filter_reasons].filter(Boolean).join("\n");
+  return h("td", { class: "col-score" }, [
+    h("span", { class: `score-chip tier-${row.tier}`, title: reason, text: score }),
+    h("span", { class: `tier-tag tier-${row.tier}`, title: reason, text: tag }),
+  ]);
+}
+
+// "50000-70000 EUR/an" -> "50–70k €": same information in a third of the width.
+function compactSalary(text) {
+  const range = /^(\d{4,6})\s*-\s*(\d{4,6})\s*EUR\/an$/i.exec(text.trim());
+  if (range) return `${Math.round(range[1] / 1000)}–${Math.round(range[2] / 1000)}k €`;
+  return text.replace(/\s*EUR\/an/i, " €/an");
+}
+
+function salaryText(row) {
+  if (String(row.salary || "").trim()) return compactSalary(String(row.salary));
+  const min = Number(row.salary_gross_min);
+  return min > 0 ? `≥ ${Math.round(min / 1000)}k €/年` : "";
+}
+
+function jobRow(row, newDay) {
+  const overlay = state.overlay.get(row.job_id);
+  const tr = h("tr", { class: rowClass(row), "data-job": row.job_id });
+  const isNew = newDay && row.first_seen_day === newDay;
+
+  const statusBox = h("select", {
+    class: "mini-status",
+    "aria-label": "我的申请状态",
+    onchange: (event) => {
+      // Update just this row: a full re-render would drop the scroll position mid-triage.
+      state.skipOverlayRender = true;
+      state.overlay.set(row.job_id, { status: event.target.value });
+      state.skipOverlayRender = false;
+      tr.className = rowClass(row);
+      if (state.query.statuses.length) renderExplorer();
+    },
+  }, ["", ...STATUSES].map((status) => h("option", { value: status, selected: (overlay.status || "") === status }, status || "—")));
+
+  const visibleSet = new Set(state.visibleCols || []);
+  const cells = [];
+  cells.push(h("td", { class: "col-link" }, externalLink(row, { rowNode: tr }) || h("span", { class: "muted", text: "\u2014" })));
+  cells.push(h("td", { class: "col-check" }, h("input", {
+    type: "checkbox",
+    "data-job": row.job_id,
+    checked: state.selected.has(row.job_id),
+    onchange: (event) => {
+      if (event.target.checked) state.selected.add(row.job_id);
+      else state.selected.delete(row.job_id);
+      syncSelectionUi(state.lastCount);
+    },
+  })));
+  if (visibleSet.has("score")) cells.push(scoreCell(row));
+  if (visibleSet.has("title")) cells.push(h("td", { class: "col-title" }, [
+    h("a", {
+      href: "#",
+      class: "job-title",
+      onclick: (event) => {
+        event.preventDefault();
+        openJob(row.job_id);
+      },
+      text: row.title || "(\u65e0\u6807\u9898)",
+    }),
+    isNew ? h("span", { class: "badge-new", title: "\u672c\u8f6e\u9996\u6b21\u51fa\u73b0", text: "\u65b0" }) : null,
+  ]));
+  if (visibleSet.has("company")) cells.push(h("td", { class: "col-company", text: row.company }));
+  if (visibleSet.has("location")) cells.push(h("td", { class: "col-location", title: row.location }, [row.city || row.location, row.remote === "Yes" ? h("span", { class: "tag-remote", text: "\u8fdc\u7a0b" }) : null]));
+  if (visibleSet.has("salary")) cells.push(h("td", { class: "col-salary", title: row.salary || "", text: salaryText(row) }));
+  if (visibleSet.has("employment_type")) cells.push(h("td", { class: "col-employment_type", text: row.employment_type }));
+  if (visibleSet.has("published_at")) cells.push(h("td", { class: "col-published_at", text: shortDate(row.posted_day) }));
+  if (visibleSet.has("source")) cells.push(h("td", { class: "col-source", text: row.source }));
+  if (visibleSet.has("status")) cells.push(h("td", { class: "col-status" }, row.status === "closed" ? h("span", { class: "tag-closed", text: "\u5df2\u5173\u95ed" }) : null));
+  if (visibleSet.has("mine")) cells.push(h("td", { class: "col-mine" }, statusBox));
+  tr.append(...cells);
+  const actions = h("span", { class: "row-actions" }, [
+    h("button", { type: "button", class: "ghost", onclick: () => openJob(row.job_id), title: "\u8be6\u60c5", text: "\u22ef" }),
+    h("button", { type: "button", class: "ghost", onclick: () => { state.overlay.set(row.job_id, { status: "\u5df2\u6295\u9012" }); tr.className = rowClass(row); }, title: "\u6807\u4e3a\u5df2\u6295", text: "\u2713" }),
+    h("button", { type: "button", class: "ghost", onclick: () => { const n = prompt("\u5907\u6ce8\uff1a", state.overlay.get(row.job_id).notes || ""); if (n !== null) state.overlay.set(row.job_id, { notes: n }); }, title: "\u5199\u5907\u6ce8", text: "\u270e" }),
+    h("a", { href: row.url || "#", target: "_blank", rel: "noopener", class: "ghost", title: "\u539f\u9875", text: "\u2197" }),
+  ]);
+  tr.appendChild(actions);
+  return tr;
 }
 
 function pager(pages, count) {
@@ -611,6 +1027,13 @@ function filterPanel() {
         state.query.text = event.target.value;
         state.page = 0;
         renderExplorer();
+        // The re-render replaces the input, which silently dropped focus after every
+        // pause in typing. Hand it back to the new one with the caret at the end.
+        const box = els.view.querySelector("input.search");
+        if (box) {
+          box.focus();
+          box.setSelectionRange(box.value.length, box.value.length);
+        }
       }, 250),
     })
   );
@@ -695,7 +1118,9 @@ function filterPanel() {
       type: "button",
       class: "reset",
       onclick: () => {
-        state.query = { text: "", facets: {}, scoreRange: [null, null], dateRange: { start: "", end: "" }, statuses: [], searchJd: false };
+        state.query = freshQuery();
+        setPref("hideClosed", false);
+        setPref("hideVisited", false);
         state.page = 0;
         renderExplorer();
       },
@@ -708,7 +1133,7 @@ function filterPanel() {
 function facetBlock(facet, entries) {
   const limit = entries.length > 12 ? 12 : entries.length;
   const selected = state.query.facets[facet] || [];
-  return h("details", { class: "filter-block" }, [
+  return h("details", { class: "filter-block", open: ["country", "source", "status", "decision"].includes(facet) }, [
     h("summary", {}, `${pretty(facet)}（${entries.length}）`),
     h(
       "div",
@@ -735,13 +1160,41 @@ function facetBlock(facet, entries) {
   ]);
 }
 
+function openDrawer(jobId, focus = true) {
+  const body = document.getElementById("drawer-body");
+  if (!body) return;
+  clear(body);
+  const block = detailBlock(jobId);
+  if (block) body.appendChild(block);
+  const drawer = document.getElementById("drawer");
+  const backdrop = document.getElementById("drawer-backdrop");
+  if (drawer) drawer.classList.add("open");
+  if (backdrop) backdrop.classList.add("open");
+  if (focus) {
+    const node = document.getElementById("detail");
+    if (node) { node.tabIndex = -1; node.focus(); }
+  }
+}
+
+function closeJob() {
+  state.activeJob = "";
+  const drawer = document.getElementById("drawer");
+  const backdrop = document.getElementById("drawer-backdrop");
+  if (drawer) drawer.classList.remove("open");
+  if (backdrop) backdrop.classList.remove("open");
+  pushUrlState();
+}
+
 function openJob(jobId) {
+  state.visited.mark(jobId);
   state.activeJob = jobId;
   state.view = "explorer";
   bindTabs();
-  renderExplorer();
-  const node = document.getElementById("detail");
-  if (node) node.scrollIntoView({ block: "start" });
+  // Do NOT re-render the table: opening a job is a selection, not a filter change.
+  // Re-rendering rebuilt the whole grid, dropped the scroll position, and cost a
+  // full filteredRows() + sortRows() pass on every click.
+  openDrawer(jobId);
+  pushUrlState();
 }
 
 function detailBlock(jobId) {
@@ -754,14 +1207,21 @@ function detailBlock(jobId) {
       h(
         "dl",
         { class: "kv" },
-        columns.flatMap((column) => [h("dt", {}, pretty(column)), h("dd", {}, cellText(row, column) || "—")])
+        columns.flatMap((column) => [h("dt", {}, pretty(column)), h("dd", {}, detailValue(row, column))])
       ),
     ])
   );
 
+  const tier = tierMeta(row.tier);
+  const why = [tier.rule, row.filter_reasons, row.hard_filter_reasons].filter(Boolean).join(" · ");
   return h("section", { class: "card detail", id: "detail" }, [
     h("h2", {}, row.title || "(无标题)"),
-    h("p", { class: "muted" }, [`${row.company || "—"} · ${row.location || "—"}`, " ", h("a", { href: row.url, target: "_blank", rel: "noopener noreferrer", text: "打开原招聘页" })]),
+    h("p", { class: "muted" }, [`${row.company || "—"} · ${row.location || "—"}`, " ", externalLink(row, { text: "打开原招聘页 ↗", className: "" })]),
+    h("p", { class: "detail-tier" }, [
+      h("span", { class: `score-chip tier-${row.tier}`, text: row.final_score === "" ? "—" : String(row.final_score) }),
+      h("span", { class: `tier-tag tier-${row.tier}`, text: row.tier === "blocked" ? `✕ ${row.gate || tier.label}` : tier.label }),
+      h("span", { class: "muted", text: why }),
+    ]),
     h("div", { class: "detail-columns" }, [h("div", { class: "detail-fields" }, groups), jdBlock(row)]),
     h("div", { class: "overlay-editor" }, [
       h("h3", {}, "我的申请状态（只存本机浏览器）"),
@@ -781,6 +1241,27 @@ function detailBlock(jobId) {
       overlay.updated_at ? h("span", { class: "muted", text: `本机记录更新于 ${overlay.updated_at}` }) : null,
     ]),
   ]);
+}
+
+// URL fields show as a short, clickable host name rather than the full (often very long,
+// tracking-laden) address; the full URL is in the tooltip.
+function detailValue(row, column) {
+  const text = cellText(row, column);
+  if (!text) return "—";
+  if (column === "canonical_url" || column === "url") {
+    const href = safeUrl(text);
+    if (href) {
+      return h("a", {
+        href,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        title: href,
+        onclick: () => state.visited.mark(row.job_id),
+        text: `${hostOf(href)} ↗`,
+      });
+    }
+  }
+  return text;
 }
 
 function jdBlock(row) {
@@ -947,6 +1428,11 @@ function refPicker() {
 
 function renderSettings() {
   clear(els.view);
+  els.view.appendChild(h("section", { class: "card" }, [
+    h("h2", {}, "数据健康（历史运行）"),
+    h("p", { class: "muted" }, "爬虫运行记录与数据健康。正常情况下不需要查看。"),
+    h("button", { type: "button", class: "secondary", onclick: () => { state.view = "history"; bindTabs(); render(); }, text: "打开历史运行视图" }),
+  ]));
   const manifest = state.manifest || {};
   els.view.appendChild(
     section("这份数据从哪来", [
@@ -993,9 +1479,25 @@ function renderSettings() {
 
   els.view.appendChild(
     section("我的申请状态（只在本机）", [
-      h("p", { class: "muted" }, `${state.overlay.count()} 条本机记录。这些数据从不进入发布快照，也不上传。`),
+      h("p", { class: "muted" }, `${state.overlay.count()} 条本机记录，${state.visited.count()} 个岗位被标记为已看过。这些数据从不进入发布快照，也不上传。`),
       h("div", { class: "row" }, [
-        h("button", { type: "button", onclick: () => download(`jobdash-notes-${stamp()}.json`, state.overlay.exportText(), "application/json"), text: "导出备注 JSON" }),
+        h("button", {
+          type: "button",
+          onclick: () => {
+            const payload = JSON.parse(state.overlay.exportText());
+            payload.visited = state.visited.all();
+            download(`jobdash-notes-${stamp()}.json`, JSON.stringify(payload, null, 2), "application/json");
+          },
+          text: "导出备注 JSON（含已看过）",
+        }),
+        h("button", {
+          type: "button",
+          onclick: () => {
+            if (window.confirm("确定清除全部「已看过」标记？备注和申请状态不受影响。")) state.visited.clear();
+            renderSettings();
+          },
+          text: "清除已看标记",
+        }),
         h("label", { class: "file" }, [
           "导入备注 JSON",
           h("input", { type: "file", accept: "application/json", onchange: importNotes }),
@@ -1024,7 +1526,10 @@ async function importNotes(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
   try {
-    const count = state.overlay.importText(await file.text());
+    const text = await file.text();
+    const count = state.overlay.importText(text);
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.visited === "object") state.visited.merge(parsed.visited);
     setStatus(`已导入 ${count} 条本机备注。`);
     renderSettings();
   } catch (error) {

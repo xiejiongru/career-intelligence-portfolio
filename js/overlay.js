@@ -6,6 +6,59 @@ const OVERLAY_KEY = "jobdash.overlay.v1";
 
 export const STATUSES = ["未处理", "已投递", "已回复", "面试中", "Offer", "拒绝", "放弃", "已关闭"];
 
+const VISITED_KEY = "jobdash.visited.v1";
+
+// Which postings this browser has opened (link or detail). Deliberately separate from the
+// notes overlay and without change listeners: marking a row must be a cheap DOM tweak,
+// not a table rebuild that throws away the scroll position.
+export function createVisited() {
+  let data = read();
+
+  function read() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(VISITED_KEY) || "{}");
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function persist() {
+    try {
+      localStorage.setItem(VISITED_KEY, JSON.stringify(data));
+    } catch {
+      // Best effort: losing a "seen" marker must never block opening a posting.
+    }
+  }
+
+  return {
+    has(jobId) {
+      return Object.prototype.hasOwnProperty.call(data, jobId);
+    },
+    mark(jobId) {
+      if (!jobId || this.has(jobId)) return;
+      data[jobId] = new Date().toISOString();
+      persist();
+    },
+    count() {
+      return Object.keys(data).length;
+    },
+    all() {
+      return { ...data };
+    },
+    merge(map) {
+      for (const [jobId, stamp] of Object.entries(map || {})) {
+        if (typeof stamp === "string" && !this.has(jobId)) data[jobId] = stamp;
+      }
+      persist();
+    },
+    clear() {
+      data = {};
+      persist();
+    },
+  };
+}
+
 export function createOverlay() {
   let data = read();
   const listeners = new Set();
