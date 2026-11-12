@@ -278,3 +278,61 @@ tr.job-row { position: relative; }
 }
 
 .filters details[open] > summary { font-weight: 600; }
+
+/* ===== 2026-11-12: sort chain, skeletons, phone cards, batch actions ===== */
+
+/* Rank badge on a chained sort: the arrow says direction, the digit says order. */
+.sort-rank {
+  display: inline-block; min-width: 13px; margin-left: 3px; padding: 0 3px;
+  border-radius: 7px; background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center;
+}
+
+/* Skeleton widths are classes because CSP style-src forbids the style attribute. */
+.skeleton-heading { height: 20px; width: 220px; margin-bottom: 12px; }
+.skeleton-row {
+  display: grid; gap: 10px; align-items: center; padding: 7px 0;
+  grid-template-columns: 26px 18px minmax(140px, 3fr) minmax(90px, 1fr) 84px;
+}
+.skeleton-row .skeleton { height: 13px; }
+.sk-link { width: 100%; }
+.sk-check { width: 14px; }
+.sk-title { width: 100%; }
+.sk-company { width: 70%; }
+.sk-meta { width: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  .drawer { transition: none; }
+}
+
+/* Table and cards are two renderings of the same page of rows; CSS picks one. */
+.table-block { display: grid; gap: 8px; }
+.card-list { display: none; }
+.job-card {
+  background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--line);
+  border-radius: 6px; padding: 8px 10px; display: grid; gap: 6px;
+}
+.job-card.tier-must { border-left-color: var(--must-bar); }
+.job-card.tier-maybe { border-left-color: var(--maybe-bar); }
+.job-card.tier-review { border-left-color: var(--review-bar); }
+.job-card.tier-low { border-left-color: var(--low-bar); }
+.job-card.tier-blocked { border-left-color: var(--blocked-bar); }
+.job-card.is-visited { background: var(--visited-bg); }
+.job-card.is-active { background: #eaf2fa; }
+.job-card-head { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.job-card-meta { margin: 0; }
+
+@media (max-width: 768px) {
+  .card-list { display: grid; gap: 8px; }
+}
+
+/* Visa sponsorship, read from the advert's own words. Three states, and "unknown" is
+   shown as unknown: an advert that never mentions sponsorship is not a yes. */
+.visa-chip {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 3px;
+  font-size: 11.5px; border: 1px solid; white-space: nowrap;
+}
+.visa-chip.visa-ok { background: var(--apply-bg); color: var(--apply-ink); border-color: var(--apply-line); }
+.visa-chip.visa-no { background: var(--skip-bg); color: var(--skip-ink); border-color: var(--skip-line); }
+.visa-chip.visa-unknown { background: var(--review-bg); color: var(--review-ink); border-color: var(--review-line); }

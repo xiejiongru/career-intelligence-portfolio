@@ -38,6 +38,7 @@ const TABLE_HEAD = [
   { key: "published_at", label: "发布", sort: "published_at" },
   { key: "source", label: "来源", sort: "source" },
   { key: "status", label: "招聘", sort: "status" },
+  { key: "visa_status", label: "签证担保", title: "岗位自己的话：担保✓=写明提供签证担保，无担保✕=明确不提供，担保?=没提（未知不等于可以）" },
   { key: "mine", label: "我的状态", title: "只存本机浏览器" },
 ];
 const SORT_CHOICES = [
@@ -71,6 +72,8 @@ const state = {
   visited: createVisited(),
   query: freshQuery({ hideClosed: getPrefs().hideClosed === true, hideVisited: getPrefs().hideVisited === true }),
   sort: { column: "priority", direction: "desc" },
+  sortChain: [],
+  lastFocus: null,
   skipOverlayRender: false,
   page: 0,
   pageSize: 50,
@@ -269,6 +272,7 @@ async function startSession(backend, label) {
   els.app.hidden = false;
   els.token.value = "";
   setStatus(`正在读取 ${label} 的快照…`);
+  renderSkeleton();
   state.backend = backend;
   await reload();
 }
@@ -363,7 +367,11 @@ function pushUrlState() {
     if (state.query.tiers && state.query.tiers.length) params.set("tiers", state.query.tiers.join(","));
     if (state.hideClosed) params.set("hideClosed", "1");
     if (state.hideVisited) params.set("hideVisited", "1");
-    if (state.sort && state.sort.column) { params.set("sort", state.sort.column); params.set("dir", state.sort.direction); }
+    if (state.sort && state.sort.column) {
+      const keys = activeSortKeys();
+      params.set("sort", keys.map((key) => key.column).join(","));
+      params.set("dir", keys.map((key) => key.direction).join(","));
+    }
     if (state.page) params.set("page", String(state.page));
     const qs = params.toString();
     const url = qs ? `${location.pathname}?${qs}` : location.pathname;
@@ -380,16 +388,34 @@ function readUrlState() {
     if (params.has("tiers")) state.query.tiers = params.get("tiers").split(",").filter(Boolean);
     if (params.has("hideClosed")) state.query.hideClosed = true;
     if (params.has("hideVisited")) state.query.hideVisited = true;
-    if (params.has("sort")) state.sort.column = params.get("sort");
-    if (params.has("dir")) state.sort.direction = params.get("dir");
+    if (params.has("sort")) {
+      const columns = (params.get("sort") || "").split(",").filter(Boolean);
+      const dirs = (params.get("dir") || "").split(",");
+      if (columns.length) {
+        state.sort = { column: columns[0], direction: dirs[0] === "asc" ? "asc" : "desc" };
+        state.sortChain = columns.slice(1).map((column, index) => ({
+          column,
+          direction: dirs[index + 1] === "asc" ? "asc" : "desc",
+        }));
+      }
+    }
     if (params.has("page")) state.page = Number(params.get("page")) || 0;
   } catch { /* ignore */ }
 }
 
 function setupKeyboardNav() {
   document.addEventListener("keydown", (event) => {
+    // Escape closes the drawer even when the caret is inside its note field: otherwise the
+    // one key everybody tries first does nothing while you are editing.
+    if (event.key === "Escape") {
+      const drawer = document.getElementById("drawer");
+      if (drawer && drawer.classList.contains("open")) {
+        event.preventDefault();
+        closeJob();
+      }
+      return;
+    }
     if (event.target && (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA" || event.target.tagName === "SELECT")) return;
-    if (event.key === "Escape") { closeJob(); return; }
     if (state.view !== "explorer") return;
     const rows = filteredRows();
     if (!rows.length) return;
@@ -434,7 +460,7 @@ function applyDensity() {
 function render() {
   clear(els.view);
   if (!state.manifest) {
-    els.view.appendChild(h("p", { class: "muted" }, "还没有加载到数据。"));
+    renderSkeleton();
     return;
   }
   els.snapinfo.textContent = labelFromManifest(state.manifest);
@@ -442,6 +468,27 @@ function render() {
   else if (state.view === "explorer") renderExplorer();
   else if (state.view === "history") renderHistory();
   else renderSettings();
+}
+
+// The snapshot is gzip and carries thousands of rows; a cold load used to show one grey
+// line above an empty page, which reads as "broken". A skeleton says the layout is coming.
+// Widths are classes, not inline styles: CSP `style-src 'self'` forbids the style attribute.
+function renderSkeleton() {
+  if (state.manifest) return;
+  const rows = [0, 1, 2, 3, 4, 5, 6, 7].map(() =>
+    h("div", { class: "skeleton-row" }, [
+      h("span", { class: "skeleton sk-link" }),
+      h("span", { class: "skeleton sk-check" }),
+      h("span", { class: "skeleton sk-title" }),
+      h("span", { class: "skeleton sk-company" }),
+      h("span", { class: "skeleton sk-meta" }),
+    ])
+  );
+  clear(els.view);
+  els.view.appendChild(h("div", { class: "card", "aria-busy": "true", "aria-label": "正在读取快照" }, [
+    h("div", { class: "skeleton skeleton-heading" }),
+    ...rows,
+  ]));
 }
 
 function section(title, children = [], attrs = {}) {
@@ -646,7 +693,45 @@ function baseRows() {
 function filteredRows(base = baseRows()) {
   const picked = state.query.tiers;
   const rows = picked.length ? base.filter((row) => picked.includes(row.tier)) : base;
-  return sortRows(rows, state.sort);
+  return sortRows(rows, activeSortKeys());
+}
+
+// A single sort key throws away the previous one, but the question people actually ask is
+// a chain: "same score → newest first". `data.js` has supported an array of keys all along;
+// this is the UI that finally passes more than one.
+function activeSortKeys() {
+  const keys = [];
+  const seen = new Set();
+  for (const key of [state.sort, ...(state.sortChain || [])]) {
+    if (!key || !key.column || seen.has(key.column)) continue;
+    seen.add(key.column);
+    keys.push({ column: key.column, direction: key.direction === "asc" ? "asc" : "desc" });
+  }
+  return keys;
+}
+
+// Plain click: replace the chain and flip asc/desc. Shift-click: add this column as another
+// key, flip it in place, and drop it again on the third click.
+function cycleSort(column, append) {
+  const keys = activeSortKeys();
+  const current = keys.find((key) => key.column === column);
+  const next = !current ? "desc" : current.direction === "desc" ? "asc" : "desc";
+  if (!append) {
+    state.sort = { column, direction: next };
+    state.sortChain = [];
+    return;
+  }
+  if (current && current.direction === "asc" && keys.length > 1) {
+    const rest = keys.filter((key) => key.column !== column);
+    state.sort = rest[0];
+    state.sortChain = rest.slice(1);
+    return;
+  }
+  const position = current ? keys.findIndex((key) => key.column === column) : keys.length;
+  const chain = keys.filter((key) => key.column !== column);
+  chain.splice(Math.min(position, chain.length), 0, { column, direction: next });
+  state.sort = chain[0];
+  state.sortChain = chain.slice(1);
 }
 
 function renderExplorer() {
@@ -709,10 +794,23 @@ function renderExplorer() {
   layout.appendChild(main);
   els.view.appendChild(layout);
   const backdrop = h("div", { class: "drawer-backdrop", id: "drawer-backdrop", onclick: () => closeJob() });
-  const drawer = h("aside", { class: "drawer", id: "drawer" }, [
-    h("button", { type: "button", class: "ghost drawer-close", onclick: () => closeJob(), text: "×" }),
+  const drawer = h("aside", {
+    class: "drawer",
+    id: "drawer",
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-labelledby": "drawer-title",
+    "aria-hidden": "true",
+    inert: true,
+  }, [
+    h("button", { type: "button", class: "ghost drawer-close", onclick: () => closeJob(), "aria-label": "关闭详情", text: "×" }),
     h("div", { id: "drawer-body" }),
   ]);
+  // Tab must stay inside the dialog: the table behind it is still in the tab order and a
+  // keyboard user would otherwise walk invisibly off-panel.
+  drawer.addEventListener("keydown", (event) => {
+    if (event.key === "Tab") trapFocus(drawer, event);
+  });
   els.view.appendChild(backdrop);
   els.view.appendChild(drawer);
   if (state.activeJob) openDrawer(state.activeJob, false);
@@ -771,8 +869,10 @@ function quickbar(base) {
     h("select", {
       onchange: (event) => {
         state.sort = { column: event.target.value, direction: "desc" };
+        state.sortChain = [];
         state.page = 0;
         renderExplorer();
+        pushUrlState();
       },
     }, [
       ...(known ? [] : [h("option", { value: state.sort.column, selected: true }, "按表头排序")]),
@@ -792,7 +892,19 @@ function quickbar(base) {
   ]);
 return h("div", { class: "quickbar" }, [
     h("div", { class: "chips", role: "group", "aria-label": "按档位过滤" }, chips),
-    h("div", { class: "row" }, [toggle("hideClosed", "隐藏已关闭"), toggle("hideVisited", "隐藏已看过"), sortBox, densityBox]),
+    h("div", { class: "row" }, [
+      toggle("hideClosed", "隐藏已关闭"),
+      toggle("hideVisited", "隐藏已看过"),
+      sortBox,
+      densityBox,
+      h("button", {
+        type: "button",
+        class: "secondary",
+        onclick: exportIntake,
+        title: "导出「必投 · 未投递 · 未看过 · 非法国岗位需有签证担保」的岗位清单，交给 Obsidian 申请流水线",
+        text: `导出待办 ${intakeRows().length}`,
+      }),
+    ]),
   ]);
 }
 
@@ -824,6 +936,11 @@ return h("div", { class: "toolbar" }, [
     ]),
 
   colBtn,
+    h("div", { class: "row bulk-actions", hidden: state.selected.size === 0 }, [
+      h("button", { type: "button", class: "secondary", onclick: () => bulkStatus("已投递"), text: "批量标为已投" }),
+      h("button", { type: "button", class: "secondary", onclick: () => bulkStatus("放弃"), text: "批量放弃" }),
+      h("button", { type: "button", class: "ghost", onclick: () => { state.selected.clear(); syncSelectionUi(state.lastCount); }, text: "清空选择" }),
+    ]),
     h("button", { type: "button", onclick: () => exportCsv("all", null), text: "下载全部 CSV" }),
     h("button", { type: "button", onclick: () => exportCsv("filtered", filteredRows()), text: "下载筛选结果 CSV" }),
     h("button", {
@@ -847,9 +964,23 @@ function syncSelectionUi(count) {
   if (pageBox) pageBox.checked = count > 0 && pageRowsAreAllSelected();
   const downloadButton = scope.querySelector(".download-selected");
   if (downloadButton) downloadButton.disabled = state.selected.size === 0;
+  const bulk = scope.querySelector(".bulk-actions");
+  if (bulk) bulk.hidden = state.selected.size === 0;
   for (const box of scope.querySelectorAll("tr.job-row input[type=checkbox]")) {
     box.checked = state.selected.has(box.dataset.job);
   }
+}
+
+// Selection used to exist only to export CSV. Triaging forty rows one row at a time is the
+// actual work, so selection now writes the same overlay (localStorage) in one go.
+function bulkStatus(status) {
+  const ids = [...state.selected];
+  if (!ids.length) return;
+  state.skipOverlayRender = true;
+  for (const id of ids) state.overlay.set(id, { status });
+  state.skipOverlayRender = false;
+  state.selected.clear();
+  renderExplorer();
 }
 
 function pageRowsAreAllSelected() {
@@ -872,30 +1003,71 @@ function tableBlock(pageRows, allRows) {
   }
   const visibleSet = new Set(state.visibleCols || []);
   const visibleHead = TABLE_HEAD.filter((col) => col.key === "link" || col.key === "check" || visibleSet.has(col.key));
+  const sortKeys = activeSortKeys();
   const head = h("tr", {}, [
     ...visibleHead.map((col) => {
       if (!col.sort) return h("th", { class: `col-${col.key}`, scope: "col", title: col.title }, col.label);
-      const active = state.sort.column === col.sort;
+      const rank = sortKeys.findIndex((key) => key.column === col.sort);
+      const active = rank >= 0;
+      const key = active ? sortKeys[rank] : null;
       return h(
         "th",
         {
           class: `col-${col.key} sortable${active ? " sorted" : ""}`,
           scope: "col",
-          "aria-sort": active ? (state.sort.direction === "desc" ? "descending" : "ascending") : "none",
-          onclick: () => {
-            state.sort = { column: col.sort, direction: active && state.sort.direction === "desc" ? "asc" : "desc" };
+          "aria-sort": active ? (key.direction === "desc" ? "descending" : "ascending") : "none",
+          onclick: (event) => {
+            cycleSort(col.sort, event.shiftKey);
+            state.page = 0;
             renderExplorer();
+            pushUrlState();
           },
-          title: col.title || `按「${col.label}」排序`,
+          title: `${col.title || `按「${col.label}」排序`}（Shift+点击：加为第二排序键）`,
         },
-        [col.label, active ? (state.sort.direction === "desc" ? " ↓" : " ↑") : ""]
+        [
+          col.label,
+          active ? (key.direction === "desc" ? " ↓" : " ↑") : "",
+          active && sortKeys.length > 1 ? h("span", { class: "sort-rank", text: String(rank + 1) }) : null,
+        ]
       );
     }),
   ]);
 
   const newDay = state.runs[0] && state.runs[0].completed_at ? String(state.runs[0].completed_at).slice(0, 10) : "";
   const body = pageRows.map((row) => jobRow(row, newDay));
-  return h("div", { class: "table-scroll" }, h("table", { class: "grid" }, [h("thead", {}, head), h("tbody", {}, body)]));
+  const cards = h("div", { class: "card-list" }, pageRows.map((row) => jobCard(row, newDay)));
+  return h("div", { class: "table-block" }, [
+    h("div", { class: "table-scroll" }, h("table", { class: "grid" }, [h("thead", {}, head), h("tbody", {}, body)])),
+    cards,
+  ]);
+}
+
+// Narrow screens get cards instead of a 17-column table squeezed off the edge: the same
+// five things (what/where/when/score/act) at a size a phone can actually read.
+function jobCard(row, newDay) {
+  const tier = tierMeta(row.tier);
+  const meta = [row.company, row.city || row.location, salaryText(row), shortDate(row.posted_day)].filter(Boolean);
+  return h("article", { class: `job-card ${rowClass(row)}`, "data-job": row.job_id }, [
+    h("div", { class: "job-card-head" }, [
+      h("a", {
+        href: "#",
+        class: "job-title",
+        onclick: (event) => {
+          event.preventDefault();
+          openJob(row.job_id);
+        },
+        text: row.title || "(无标题)",
+      }),
+      newDay && row.first_seen_day === newDay ? h("span", { class: "badge-new", text: "新" }) : null,
+    ]),
+    h("p", { class: "muted job-card-meta", text: meta.join(" · ") }),
+    h("div", { class: "row" }, [
+      h("span", { class: `score-chip tier-${row.tier}`, text: row.final_score === "" ? "—" : String(row.final_score) }),
+      h("span", { class: `tier-tag tier-${row.tier}`, text: row.tier === "blocked" ? `✕ ${row.gate || tier.label}` : tier.label }),
+      visaChip(row),
+      row.url ? h("a", { href: safeUrl(row.url) || "#", target: "_blank", rel: "noopener", class: "ext", title: "原页", text: "↗" }) : null,
+    ]),
+  ]);
 }
 
 function rowClass(row) {
@@ -908,6 +1080,65 @@ function rowClass(row) {
   return parts.join(" ");
 }
 
+// The intake list is what the Obsidian application pipeline consumes: the jobs that are
+// worth writing a cover letter for. The reader applies these rules by hand every day, so
+// the machine applies exactly the same ones:
+//   1. must-apply tier (through every gate, high enough score),
+//   2. not applied to yet and not opened yet - those are the reader's own decisions,
+//   3. outside France, proven visa sponsorship; silence is not proof.
+// The browser holds the only record of "applied" and "opened" (localStorage), so the
+// export is what carries that knowledge out of the page.
+const APPLIED_STATES = ["已投递", "已回复", "面试中", "Offer", "拒绝", "放弃", "已关闭"];
+
+function intakeRows() {
+  return baseRows().filter((row) => {
+    if (row.tier !== "must") return false;
+    if (state.visited.has(row.job_id)) return false;
+    const status = state.overlay.get(row.job_id).status || "";
+    if (APPLIED_STATES.includes(status)) return false;
+    const country = String(row.country || "");
+    if (country && country !== "France") return String(row.visa_status || "") === "sponsored";
+    return true;
+  });
+}
+
+function exportIntake() {
+  const rows = intakeRows();
+  const payload = {
+    kind: "jobdash.intake",
+    version: 1,
+    exported_at: new Date().toISOString(),
+    snapshot_run: state.manifest ? state.manifest.latest_run_completed_at || "" : "",
+    criteria: {
+      tier: "must",
+      skip_visited: true,
+      skip_applied: true,
+      non_france_requires: "visa_status = sponsored",
+    },
+    jobs: rows.map((row) => ({
+      job_id: row.job_id,
+      title: row.title,
+      company: row.company,
+      location: row.location,
+      country: row.country,
+      remote: row.remote,
+      employment_type: row.employment_type,
+      salary: row.salary,
+      url: row.url,
+      final_score: row.final_score,
+      tier: row.tier,
+      decision: row.decision,
+      visa_status: row.visa_status || "",
+      visa_evidence: row.visa_evidence || "",
+      published_at: row.published_at,
+      first_seen_at: row.first_seen_at,
+      description: (state.descriptions && state.descriptions[row.job_id]) || "",
+    })),
+  };
+  download(`jobdash-intake-${stamp()}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
+  setStatus(`已导出 ${rows.length} 条待办（必投 · 未投递 · 未看过 · 非法国岗位需有签证担保）`);
+}
+
 function scoreCell(row) {
   const tier = tierMeta(row.tier);
   const score = row.final_score === "" || row.final_score === undefined ? "—" : String(row.final_score);
@@ -917,7 +1148,27 @@ function scoreCell(row) {
   return h("td", { class: "col-score" }, [
     h("span", { class: `score-chip tier-${row.tier}`, title: reason, text: score }),
     h("span", { class: `tier-tag tier-${row.tier}`, title: reason, text: tag }),
+    visaChip(row),
   ]);
+}
+
+// Visa sponsorship, read from the advert's own words by pipeline/signals/visa.py.
+// French posts are silent (the badge would be noise on 3 000+ rows), and "unknown" is
+// shown as unknown: an advert that never mentions sponsorship is not a yes.
+const VISA_LABELS = {
+  sponsored: { cls: "visa-ok", text: "担保✓" },
+  not_sponsored: { cls: "visa-no", text: "无担保✕" },
+  unknown: { cls: "visa-unknown", text: "担保?" },
+};
+
+function visaChip(row) {
+  const status = String(row.visa_status || "");
+  const label = VISA_LABELS[status];
+  if (!label) return null;
+  const title = row.visa_evidence
+    ? `签证担保：${row.visa_evidence}`
+    : "JD 里没有签证担保的说明";
+  return h("span", { class: `visa-chip ${label.cls}`, title, text: label.text });
 }
 
 // "50000-70000 EUR/an" -> "50–70k €": same information in a third of the width.
@@ -984,6 +1235,7 @@ function jobRow(row, newDay) {
   if (visibleSet.has("published_at")) cells.push(h("td", { class: "col-published_at", text: shortDate(row.posted_day) }));
   if (visibleSet.has("source")) cells.push(h("td", { class: "col-source", text: row.source }));
   if (visibleSet.has("status")) cells.push(h("td", { class: "col-status" }, row.status === "closed" ? h("span", { class: "tag-closed", text: "\u5df2\u5173\u95ed" }) : null));
+  if (visibleSet.has("visa_status")) cells.push(h("td", { class: "col-visa_status" }, visaChip(row) || h("span", { class: "muted", text: "—" })));
   if (visibleSet.has("mine")) cells.push(h("td", { class: "col-mine" }, statusBox));
   tr.append(...cells);
   const actions = h("span", { class: "row-actions" }, [
@@ -1163,12 +1415,19 @@ function facetBlock(facet, entries) {
 function openDrawer(jobId, focus = true) {
   const body = document.getElementById("drawer-body");
   if (!body) return;
+  if (!state.lastFocus && document.activeElement && document.activeElement !== document.body) {
+    state.lastFocus = document.activeElement;
+  }
   clear(body);
   const block = detailBlock(jobId);
   if (block) body.appendChild(block);
   const drawer = document.getElementById("drawer");
   const backdrop = document.getElementById("drawer-backdrop");
-  if (drawer) drawer.classList.add("open");
+  if (drawer) {
+    drawer.classList.add("open");
+    drawer.setAttribute("aria-hidden", "false");
+    drawer.inert = false;
+  }
   if (backdrop) backdrop.classList.add("open");
   if (focus) {
     const node = document.getElementById("detail");
@@ -1176,13 +1435,63 @@ function openDrawer(jobId, focus = true) {
   }
 }
 
+// Keep Tab inside the drawer while it is open (there is no <dialog> here: the panel is a
+// plain aside so it can stay in the document between renders).
+function trapFocus(container, event) {
+  const focusable = [...container.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+    .filter((node) => node.offsetParent !== null || node === document.activeElement);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  }
+}
+
 function closeJob() {
+  const jobId = state.activeJob;
+  flushDrawerEdits(jobId);
   state.activeJob = "";
   const drawer = document.getElementById("drawer");
   const backdrop = document.getElementById("drawer-backdrop");
-  if (drawer) drawer.classList.remove("open");
+  if (drawer) {
+    drawer.classList.remove("open");
+    drawer.setAttribute("aria-hidden", "true");
+    drawer.inert = true;
+  }
   if (backdrop) backdrop.classList.remove("open");
+  // Return focus where it came from, so closing the drawer does not dump the reader back
+  // at the top of the document.
+  const previous = state.lastFocus;
+  state.lastFocus = null;
+  if (previous && previous.isConnected) previous.focus();
+  else if (jobId) {
+    const row = document.querySelector('tr[data-job="' + jobId + '"]');
+    const target = row ? row.querySelector("a.job-title") : null;
+    if (target) target.focus();
+  }
   pushUrlState();
+}
+
+// Closing the drawer throws away its DOM, and removing a focused field fires no `change`,
+// so a half-typed note would vanish on Escape. Commit whatever is on screen first.
+function flushDrawerEdits(jobId) {
+  const body = document.getElementById("drawer-body");
+  if (!body || !jobId) return;
+  const current = state.overlay.get(jobId);
+  const patch = {};
+  const note = body.querySelector("textarea");
+  const contact = body.querySelector('input[type="text"]');
+  if (note && note.value !== (current.notes || "")) patch.notes = note.value;
+  if (contact && contact.value !== (current.contact || "")) patch.contact = contact.value;
+  if (!Object.keys(patch).length) return;
+  state.skipOverlayRender = true;
+  state.overlay.set(jobId, patch);
+  state.skipOverlayRender = false;
 }
 
 function openJob(jobId) {
@@ -1215,11 +1524,12 @@ function detailBlock(jobId) {
   const tier = tierMeta(row.tier);
   const why = [tier.rule, row.filter_reasons, row.hard_filter_reasons].filter(Boolean).join(" · ");
   return h("section", { class: "card detail", id: "detail" }, [
-    h("h2", {}, row.title || "(无标题)"),
+    h("h2", { id: "drawer-title" }, row.title || "(无标题)"),
     h("p", { class: "muted" }, [`${row.company || "—"} · ${row.location || "—"}`, " ", externalLink(row, { text: "打开原招聘页 ↗", className: "" })]),
     h("p", { class: "detail-tier" }, [
       h("span", { class: `score-chip tier-${row.tier}`, text: row.final_score === "" ? "—" : String(row.final_score) }),
       h("span", { class: `tier-tag tier-${row.tier}`, text: row.tier === "blocked" ? `✕ ${row.gate || tier.label}` : tier.label }),
+      visaChip(row),
       h("span", { class: "muted", text: why }),
     ]),
     h("div", { class: "detail-columns" }, [h("div", { class: "detail-fields" }, groups), jdBlock(row)]),
