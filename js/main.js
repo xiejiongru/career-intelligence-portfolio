@@ -1104,7 +1104,20 @@ function intakeRows() {
   });
 }
 
-function exportIntake() {
+async function exportIntake() {
+  // The vault side writes a raw JD file. Without the body it would be an empty shell, so
+  // the descriptions are fetched once here (4 MB gzip) and the exported jobs carry their
+  // own text. The snapshot's JD bodies are already public in the private branch; this
+  // copy just saves the vault a second round trip.
+  if (!state.descriptions) {
+    setStatus("正在下载 JD 正文以填入待办清单…");
+    try {
+      state.descriptions = await loadDescriptions(state.backend, state.manifest);
+      setStatus(`JD 正文已缓存 ${Object.keys(state.descriptions).length} 条`);
+    } catch (error) {
+      showError(`未能下载 JD 正文（${error.message}）；导出的清单不含正文`);
+    }
+  }
   const rows = intakeRows();
   const payload = {
     kind: "jobdash.intake",
