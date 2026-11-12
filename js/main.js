@@ -15,7 +15,7 @@ import {
   setPref,
   setToken,
 } from "./api.js";
-import { cityOf, createDataset, filterRows, sortRows, statsFor } from "./data.js";
+import { createDataset, filterRows, sortRows, statsFor } from "./data.js";
 import { barChart, histogram, lineChart, toOrdinal } from "./charts.js";
 import { download, stamp, toCsv } from "./csv.js";
 import { STATUSES, createOverlay, createVisited } from "./overlay.js";
@@ -368,7 +368,7 @@ function pushUrlState() {
     const qs = params.toString();
     const url = qs ? `${location.pathname}?${qs}` : location.pathname;
     history.replaceState(null, "", url);
-  } catch (e) { /* ignore URL API failures */ }
+  } catch { /* ignore URL API failures */ }
 }
 
 function readUrlState() {
@@ -383,7 +383,7 @@ function readUrlState() {
     if (params.has("sort")) state.sort.column = params.get("sort");
     if (params.has("dir")) state.sort.direction = params.get("dir");
     if (params.has("page")) state.page = Number(params.get("page")) || 0;
-  } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
 }
 
 function setupKeyboardNav() {
@@ -881,7 +881,7 @@ function tableBlock(pageRows, allRows) {
         {
           class: `col-${col.key} sortable${active ? " sorted" : ""}`,
           scope: "col",
-          "aria-sort": active ? (dir === "desc" ? "descending" : "ascending") : "none",
+          "aria-sort": active ? (state.sort.direction === "desc" ? "descending" : "ascending") : "none",
           onclick: () => {
             state.sort = { column: col.sort, direction: active && state.sort.direction === "desc" ? "asc" : "desc" };
             renderExplorer();
