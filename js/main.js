@@ -1091,7 +1091,9 @@ function rowClass(row) {
 const APPLIED_STATES = ["已投递", "已回复", "面试中", "Offer", "拒绝", "放弃", "已关闭"];
 
 function intakeRows() {
-  return baseRows().filter((row) => {
+  // state.rows, not baseRows(): the to-do list is the whole actionable set, not whatever
+  // the reader happens to be searching for right now.
+  return state.rows.filter((row) => {
     if (row.tier !== "must") return false;
     if (state.visited.has(row.job_id)) return false;
     const status = state.overlay.get(row.job_id).status || "";
